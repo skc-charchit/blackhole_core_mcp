@@ -17,7 +17,7 @@ A modular AI-powered framework for ingesting multimodal data (images, PDFs, text
 
 ## 📦 Project Structure
 
---- plain text
+---
 
 project_root/
 ├── adapter/

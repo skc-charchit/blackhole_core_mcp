@@ -1,8 +1,11 @@
+version: '3.9'
+
 services:
-  blackhole_api:
+  blackhole-api:
     build: .
+    container_name: blackhole-api
     ports:
       - "8000:8000"
     volumes:
       - .:/app
-    command: uvicorn data.api.mcp_adapter:app --host 0.0.0.0 --port 8000 --reload
+    restart: unless-stopped

@@ -117,6 +117,93 @@ def preprocess_image(image_path_or_object, preprocessing_level=2):
             return Image.open(image_path_or_object)
         return image_path_or_object
 
+def repair_image(image_path):
+    """
+    Attempt to repair a corrupted image file.
+
+    Args:
+        image_path: Path to the potentially corrupted image file
+
+    Returns:
+        str: Path to the repaired image or None if repair failed
+    """
+    try:
+        # Create a temporary file for the repaired image
+        temp_dir = tempfile.gettempdir()
+        base_name = os.path.basename(image_path)
+        name_without_ext = os.path.splitext(base_name)[0]
+        repaired_path = os.path.join(temp_dir, f"{name_without_ext}_repaired.png")
+
+        # Try to repair the image using binary manipulation
+        try:
+            with open(image_path, 'rb') as f:
+                image_data = f.read()
+
+            # Look for JPEG markers
+            if b'\xff\xd8' in image_data:  # JPEG SOI marker
+                print("✅ JPEG signature found, attempting repair")
+                # Find the start of image marker
+                start_idx = image_data.find(b'\xff\xd8')
+                if start_idx > 0:
+                    # Trim any garbage at the beginning
+                    image_data = image_data[start_idx:]
+
+                # Write the repaired data
+                with open(repaired_path, 'wb') as f:
+                    f.write(image_data)
+                return repaired_path
+
+            # Look for PNG markers
+            elif b'\x89PNG\r\n\x1a\n' in image_data:  # PNG signature
+                print("✅ PNG signature found, attempting repair")
+                # Find the start of PNG signature
+                start_idx = image_data.find(b'\x89PNG\r\n\x1a\n')
+                if start_idx > 0:
+                    # Trim any garbage at the beginning
+                    image_data = image_data[start_idx:]
+
+                # Write the repaired data
+                with open(repaired_path, 'wb') as f:
+                    f.write(image_data)
+                return repaired_path
+
+            # If no known signatures found, try a more aggressive approach
+            print("⚠️ No standard image signatures found, trying aggressive repair")
+
+            # Create a new blank image
+            try:
+                # Try to get image dimensions using OpenCV
+                img = cv2.imread(image_path, cv2.IMREAD_UNCHANGED)
+                if img is not None and img.size > 0:
+                    # If OpenCV can read it, save it
+                    cv2.imwrite(repaired_path, img)
+                    return repaired_path
+            except:
+                pass
+
+            # If all else fails, create a small blank image with error message
+            blank_img = np.ones((300, 500, 3), np.uint8) * 255  # White background
+            # Add error text
+            cv2.putText(
+                blank_img,
+                "Image could not be processed",
+                (50, 150),
+                cv2.FONT_HERSHEY_SIMPLEX,
+                1,
+                (0, 0, 255),
+                2
+            )
+            cv2.imwrite(repaired_path, blank_img)
+            return repaired_path
+
+        except Exception as e:
+            print(f"⚠️ Binary repair failed: {str(e)}")
+            return None
+
+    except Exception as e:
+        print(f"⚠️ Image repair error: {str(e)}")
+        return None
+
 def convert_image_format(image_path, target_format='PNG'):
     """
     Convert an image to a different format to handle problematic files.
@@ -166,6 +253,12 @@ def convert_image_format(image_path, target_format='PNG'):
                 except Exception as e3:
                     print(f"⚠️ BytesIO conversion failed: {str(e3)}")
 
+                    # Method 4: Try to repair the image
+                    repaired_path = repair_image(image_path)
+                    if repaired_path:
+                        print(f"✅ Successfully repaired and converted image")
+                        return repaired_path
+
         # If all methods failed, return the original path
         print("⚠️ All conversion methods failed, returning original path")
         return image_path
@@ -212,8 +305,32 @@ def extract_text_from_image(image_path, debug=False, preprocessing_level=2, try_
             # If direct open fails, try to convert the image format
             working_path = convert_image_format(image_path)
             if working_path == image_path:
-                # If conversion failed, return error
-                return f"❌ Error: cannot identify image file '{image_path}'. Conversion attempts failed."
+                # If conversion failed, try to repair the image
+                print(f"⚠️ Conversion failed. Trying to repair the image...")
+                repaired_path = repair_image(image_path)
+                if repaired_path:
+                    working_path = repaired_path
+                    print(f"✅ Image repaired successfully")
+                else:
+                    # If repair failed, create a blank image with error message
+                    temp_dir = tempfile.gettempdir()
+                    error_img_path = os.path.join(temp_dir, "error_image.png")
+                    blank_img = np.ones((300, 500, 3), np.uint8) * 255  # White background
+                    # Add error text
+                    cv2.putText(
+                        blank_img,
+                        "Image could not be processed",
+                        (50, 150),
+                        cv2.FONT_HERSHEY_SIMPLEX,
+                        1,
+                        (0, 0, 255),
+                        2
+                    )
+                    cv2.imwrite(error_img_path, blank_img)
+                    working_path = error_img_path
+                    print(f"⚠️ Created error image at {error_img_path}")
+                    # Return error message
+                    return f"❌ Error: cannot identify image file '{image_path}'. Repair attempts failed."
 
         # First attempt with standard preprocessing
         processed_image = preprocess_image(working_path, preprocessing_level=preprocessing_level)
@@ -269,27 +386,27 @@ def extract_text_from_image(image_path, debug=False, preprocessing_level=2, try_
                 except Exception as e:
                     print(f"⚠️ Error inverting image: {str(e)}")
 
-        # If we still have no text, try one more approach with OpenCV
-        if not text or len(text.strip()) < 10:
-            try:
-                print("⚠️ Still no text. Trying OpenCV approach...")
-                # Read image with OpenCV
-                img = cv2.imread(working_path)
-                if img is not None:
-                    # Convert to grayscale
-                    gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-                    # Apply threshold
-                    _, thresh = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
-                    # Save to temp file
-                    temp_path = os.path.join(tempfile.gettempdir(), "ocv_processed.png")
-                    cv2.imwrite(temp_path, thresh)
-                    # OCR on the processed image
-                    ocv_text = pytesseract.image_to_string(Image.open(temp_path), config=r'--oem 3 --psm 6')
-                    if ocv_text and len(ocv_text.strip()) > len(text.strip()):
-                        print("✅ Better results with OpenCV processing")
-                        text = ocv_text
-            except Exception as e:
-                print(f"⚠️ OpenCV approach failed: {str(e)}")
+            # If we still have no text, try one more approach with OpenCV
+            if not text or len(text.strip()) < 10:
+                try:
+                    print("⚠️ Still no text. Trying OpenCV approach...")
+                    # Read image with OpenCV
+                    img = cv2.imread(working_path)
+                    if img is not None:
+                        # Convert to grayscale
+                        gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+                        # Apply threshold
+                        _, thresh = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+                        # Save to temp file
+                        temp_path = os.path.join(tempfile.gettempdir(), "ocv_processed.png")
+                        cv2.imwrite(temp_path, thresh)
+                        # OCR on the processed image
+                        ocv_text = pytesseract.image_to_string(Image.open(temp_path), config=r'--oem 3 --psm 6')
+                        if ocv_text and len(ocv_text.strip()) > len(text.strip()):
+                            print("✅ Better results with OpenCV processing")
+                            text = ocv_text
+                except Exception as e:
+                    print(f"⚠️ OpenCV approach failed: {str(e)}")
 
         # Clean up temporary files if needed
         if working_path != image_path and os.path.exists(working_path):

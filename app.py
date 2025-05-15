@@ -6,6 +6,7 @@ This serves as the entry point for the backend.
 import os
 import sys
 import json
+import logging
 from flask import Flask, request, jsonify, send_from_directory
 from flask_cors import CORS
 from werkzeug.utils import secure_filename
@@ -14,13 +15,25 @@ from bson import ObjectId
 import json
 from datetime import datetime
 
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.StreamHandler(),
+        logging.FileHandler('app.log')
+    ]
+)
+logger = logging.getLogger(__name__)
+
 # Try to import optional dependencies
 try:
     import textract
     HAS_TEXTRACT = True
+    logger.info("textract library is available")
 except ImportError:
     HAS_TEXTRACT = False
-    print("⚠️ textract library not installed. Some document types may not be processed correctly.")
+    logger.warning("textract library not installed. Some document types may not be processed correctly.")
 
 # Add project root to sys.path
 sys.path.append(os.path.abspath(os.path.dirname(__file__)))
@@ -78,6 +91,8 @@ ALLOWED_EXTENSIONS = {
     'pdf', 'doc', 'docx', 'ppt', 'pptx', 'xls', 'xlsx', 'odt', 'ods', 'odp',
     # Image files
     'png', 'jpg', 'jpeg', 'gif', 'bmp', 'tiff', 'tif', 'webp', 'svg', 'heic', 'heif',
+    'raw', 'cr2', 'nef', 'arw', 'dng', 'orf', 'rw2', 'pef', 'srw', 'dcr',  # RAW formats
+    'jfif', 'exif', 'ppm', 'pgm', 'pbm', 'pnm', 'ico', 'cur',  # Additional image formats
     # Archive files (for future use)
     'zip', 'rar', '7z', 'tar', 'gz'
 }
@@ -87,8 +102,28 @@ app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 app.config['MAX_CONTENT_LENGTH'] = 50 * 1024 * 1024  # 50MB max upload size
 
 def allowed_file(filename):
-    """Check if the file extension is allowed."""
-    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+    """
+    Check if the file extension is allowed.
+    More flexible implementation that allows files without extensions
+    and treats them as potentially processable.
+    """
+    # If no filename, reject
+    if not filename:
+        return False
+
+    # If no extension, we'll try to process it anyway
+    if '.' not in filename:
+        logger.warning(f"File {filename} has no extension, will try to process it anyway")
+        return True
+
+    # Check if extension is in allowed list
+    ext = filename.rsplit('.', 1)[1].lower()
+    if ext in ALLOWED_EXTENSIONS:
+        return True
+
+    # If extension not in allowed list, log warning but still allow
+    logger.warning(f"File extension '{ext}' not in allowed list, but will try to process it anyway")
+    return True
 
 @app.route('/')
 def index():
@@ -277,6 +312,9 @@ def process_document():
             # Determine file type and extract text accordingly
             file_ext = os.path.splitext(filename)[1].lower()
 
+            # Image formats
+            image_formats = ['.png', '.jpg', '.jpeg', '.bmp', '.tiff', '.tif', '.webp', '.gif', '.heic', '.heif']
+
             if file_ext == '.pdf':
                 # Extract text from PDF with enhanced capabilities
                 extracted_text = extract_text_from_pdf(
@@ -285,19 +323,37 @@ def process_document():
                     verbose=True,
                     try_ocr=True
                 )
+            elif file_ext in image_formats or file_ext == '':  # Handle images and files without extension
+                # Try to process as image with enhanced capabilities
+                extracted_text = extract_text_from_image(
+                    filepath,
+                    debug=True,
+                    preprocessing_level=2,
+                    try_multiple_methods=True
+                )
             elif file_ext in ['.doc', '.docx', '.ppt', '.pptx', '.xls', '.xlsx']:
                 # Extract text from Office documents
                 if HAS_TEXTRACT:
                     try:
                         extracted_text = textract.process(filepath).decode('utf-8')
                     except Exception as e:
-                        return jsonify({'error': f'Error processing Office document: {str(e)}'}), 500
+                        # If textract fails, try to process as image
+                        logger.warning(f"Textract failed for {filename}, trying image OCR as fallback")
+                        extracted_text = extract_text_from_image(
+                            filepath,
+                            debug=True,
+                            preprocessing_level=2,
+                            try_multiple_methods=True
+                        )
                 else:
-                    # Fallback for Office documents when textract is not available
-                    return jsonify({
-                        'error': 'Cannot process Office documents. The textract library is not installed.',
-                        'suggestion': 'Please install textract or convert your document to PDF format.'
-                    }), 400
+                    # Try to process as image if textract is not available
+                    logger.warning(f"Textract not available, trying image OCR as fallback for {filename}")
+                    extracted_text = extract_text_from_image(
+                        filepath,
+                        debug=True,
+                        preprocessing_level=2,
+                        try_multiple_methods=True
+                    )
             elif file_ext in ['.txt', '.md', '.csv', '.json', '.xml', '.html', '.htm']:
                 # Read text files directly
                 try:
@@ -311,12 +367,23 @@ def process_document():
                     try:
                         extracted_text = textract.process(filepath).decode('utf-8')
                     except Exception as e:
-                        return jsonify({'error': f'Cannot extract text from this file type: {str(e)}'}), 500
+                        # If textract fails, try to process as image
+                        logger.warning(f"Textract failed for {filename}, trying image OCR as fallback")
+                        extracted_text = extract_text_from_image(
+                            filepath,
+                            debug=True,
+                            preprocessing_level=2,
+                            try_multiple_methods=True
+                        )
                 else:
-                    return jsonify({
-                        'error': 'Cannot process this file type. The textract library is not installed.',
-                        'suggestion': 'Please convert your document to PDF, image, or text format.'
-                    }), 400
+                    # Try to process as image if textract is not available
+                    logger.warning(f"Textract not available, trying image OCR as fallback for {filename}")
+                    extracted_text = extract_text_from_image(
+                        filepath,
+                        debug=True,
+                        preprocessing_level=2,
+                        try_multiple_methods=True
+                    )
 
             # Process with ArchiveSearchAgent
             agent = ArchiveSearchAgent()

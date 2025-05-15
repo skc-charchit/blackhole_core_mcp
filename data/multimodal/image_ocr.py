@@ -117,6 +117,63 @@ def preprocess_image(image_path_or_object, preprocessing_level=2):
             return Image.open(image_path_or_object)
         return image_path_or_object
 
+def convert_image_format(image_path, target_format='PNG'):
+    """
+    Convert an image to a different format to handle problematic files.
+
+    Args:
+        image_path: Path to the original image file
+        target_format: Format to convert to (default: PNG)
+
+    Returns:
+        str: Path to the converted image or original path if conversion failed
+    """
+    try:
+        # Create a temporary file with the target format
+        temp_dir = tempfile.gettempdir()
+        base_name = os.path.basename(image_path)
+        name_without_ext = os.path.splitext(base_name)[0]
+        converted_path = os.path.join(temp_dir, f"{name_without_ext}.{target_format.lower()}")
+
+        # Try different methods to open the image
+        try:
+            # Method 1: Direct PIL open
+            with Image.open(image_path) as img:
+                img.save(converted_path, format=target_format)
+                print(f"✅ Successfully converted image using PIL direct method")
+                return converted_path
+        except Exception as e1:
+            print(f"⚠️ PIL direct open failed: {str(e1)}")
+
+            try:
+                # Method 2: Use OpenCV to read and convert
+                img = cv2.imread(image_path)
+                if img is not None:
+                    cv2.imwrite(converted_path, img)
+                    print(f"✅ Successfully converted image using OpenCV")
+                    return converted_path
+            except Exception as e2:
+                print(f"⚠️ OpenCV conversion failed: {str(e2)}")
+
+                try:
+                    # Method 3: Read as binary and use PIL's Image.open with a BytesIO object
+                    with open(image_path, 'rb') as f:
+                        image_data = f.read()
+                        with Image.open(io.BytesIO(image_data)) as img:
+                            img.save(converted_path, format=target_format)
+                            print(f"✅ Successfully converted image using BytesIO method")
+                            return converted_path
+                except Exception as e3:
+                    print(f"⚠️ BytesIO conversion failed: {str(e3)}")
+
+        # If all methods failed, return the original path
+        print("⚠️ All conversion methods failed, returning original path")
+        return image_path
+
+    except Exception as e:
+        print(f"⚠️ Image conversion error: {str(e)}")
+        return image_path
+
 def extract_text_from_image(image_path, debug=False, preprocessing_level=2, try_multiple_methods=True):
     """
     Extract text from an image using OCR with enhanced capabilities.
@@ -133,26 +190,36 @@ def extract_text_from_image(image_path, debug=False, preprocessing_level=2, try_
     # Expanded list of supported formats
     supported_formats = ('.png', '.jpg', '.jpeg', '.bmp', '.tiff', '.tif', '.webp', '.gif', '.heic', '.heif')
 
-    # Check file extension
-    if not any(image_path.lower().endswith(ext) for ext in supported_formats):
-        # Try to open it anyway - some files might have wrong extensions
-        try:
-            Image.open(image_path)
-        except UnidentifiedImageError:
-            return f"❌ Unsupported file type: {os.path.splitext(image_path)[-1]}"
-
     # Check if file exists
     if not os.path.exists(image_path):
         return f"❌ File not found: {image_path}"
 
+    # Check file extension
+    if not any(image_path.lower().endswith(ext) for ext in supported_formats):
+        print(f"⚠️ File extension not in supported formats list: {os.path.splitext(image_path)[-1]}")
+        # We'll still try to process it
+
     try:
         print(f"🖼️  Reading image from: {image_path}")
 
+        # Try to open the image
+        try:
+            # First try to open directly
+            Image.open(image_path)
+            working_path = image_path
+        except Exception as e:
+            print(f"⚠️ Error opening image: {str(e)}. Trying to convert format...")
+            # If direct open fails, try to convert the image format
+            working_path = convert_image_format(image_path)
+            if working_path == image_path:
+                # If conversion failed, return error
+                return f"❌ Error: cannot identify image file '{image_path}'. Conversion attempts failed."
+
         # First attempt with standard preprocessing
-        processed_image = preprocess_image(image_path, preprocessing_level=preprocessing_level)
+        processed_image = preprocess_image(working_path, preprocessing_level=preprocessing_level)
 
         if debug:
-            debug_path = os.path.splitext(image_path)[0] + "_preprocessed.png"
+            debug_path = os.path.splitext(working_path)[0] + "_preprocessed.png"
             processed_image.save(debug_path)
             print(f"📄 Preprocessed image saved at: {debug_path}")
 
@@ -169,10 +236,10 @@ def extract_text_from_image(image_path, debug=False, preprocessing_level=2, try_
                 if level == preprocessing_level:
                     continue  # Skip the level we already tried
 
-                alt_processed = preprocess_image(image_path, preprocessing_level=level)
+                alt_processed = preprocess_image(working_path, preprocessing_level=level)
 
                 if debug:
-                    alt_debug_path = os.path.splitext(image_path)[0] + f"_preprocessed_level{level}.png"
+                    alt_debug_path = os.path.splitext(working_path)[0] + f"_preprocessed_level{level}.png"
                     alt_processed.save(alt_debug_path)
 
                 # Try different PSM modes
@@ -186,19 +253,54 @@ def extract_text_from_image(image_path, debug=False, preprocessing_level=2, try_
 
             # If still no good results, try inverting the image
             if not text or len(text.strip()) < 10:
-                inverted_image = ImageOps.invert(Image.open(image_path).convert('RGB'))
-                inverted_processed = preprocess_image(inverted_image, preprocessing_level=2)
+                try:
+                    with Image.open(working_path) as img:
+                        inverted_image = ImageOps.invert(img.convert('RGB'))
+                        inverted_processed = preprocess_image(inverted_image, preprocessing_level=2)
 
-                if debug:
-                    inv_debug_path = os.path.splitext(image_path)[0] + "_inverted.png"
-                    inverted_processed.save(inv_debug_path)
+                        if debug:
+                            inv_debug_path = os.path.splitext(working_path)[0] + "_inverted.png"
+                            inverted_processed.save(inv_debug_path)
 
-                inv_text = pytesseract.image_to_string(inverted_processed, config=r'--oem 3 --psm 6')
-                if inv_text and len(inv_text.strip()) > len(text.strip()):
-                    print("✅ Better results with inverted image")
-                    text = inv_text
+                        inv_text = pytesseract.image_to_string(inverted_processed, config=r'--oem 3 --psm 6')
+                        if inv_text and len(inv_text.strip()) > len(text.strip()):
+                            print("✅ Better results with inverted image")
+                            text = inv_text
+                except Exception as e:
+                    print(f"⚠️ Error inverting image: {str(e)}")
 
-        return text.strip()
+        # If we still have no text, try one more approach with OpenCV
+        if not text or len(text.strip()) < 10:
+            try:
+                print("⚠️ Still no text. Trying OpenCV approach...")
+                # Read image with OpenCV
+                img = cv2.imread(working_path)
+                if img is not None:
+                    # Convert to grayscale
+                    gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+                    # Apply threshold
+                    _, thresh = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+                    # Save to temp file
+                    temp_path = os.path.join(tempfile.gettempdir(), "ocv_processed.png")
+                    cv2.imwrite(temp_path, thresh)
+                    # OCR on the processed image
+                    ocv_text = pytesseract.image_to_string(Image.open(temp_path), config=r'--oem 3 --psm 6')
+                    if ocv_text and len(ocv_text.strip()) > len(text.strip()):
+                        print("✅ Better results with OpenCV processing")
+                        text = ocv_text
+            except Exception as e:
+                print(f"⚠️ OpenCV approach failed: {str(e)}")
+
+        # Clean up temporary files if needed
+        if working_path != image_path and os.path.exists(working_path):
+            try:
+                # Uncomment to delete temporary files
+                # os.remove(working_path)
+                pass
+            except:
+                pass
+
+        return text.strip() if text else "No text detected in image."
 
     except Exception as e:
         print(f"❌ Error extracting text from image: {str(e)}")

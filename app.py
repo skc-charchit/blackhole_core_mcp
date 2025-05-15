@@ -20,9 +20,7 @@ from data.multimodal.image_ocr import extract_text_from_image
 from data.multimodal.pdf_reader import extract_text_from_pdf
 from blackhole_core.agents.archive_search_agent import ArchiveSearchAgent
 from blackhole_core.agents.live_data_agent import LiveDataAgent
-
-# Import debug routes
-from debug_routes import register_debug_routes
+import datetime
 
 # Import logger
 try:
@@ -48,8 +46,7 @@ if cors_origins != '*':
     cors_origins = cors_origins.split(',')
 CORS(app, origins=cors_origins)
 
-# Register debug routes
-register_debug_routes(app)
+# Debug routes are defined below
 
 # Configure upload folder
 UPLOAD_FOLDER = os.getenv('UPLOAD_DIR', 'uploads')
@@ -68,7 +65,98 @@ def index():
     """Serve the main index page."""
     return send_from_directory('public', 'index.html')
 
-# Health check endpoint is now defined in debug_routes.py
+@app.route('/api/health')
+def health_check():
+    """Health check endpoint."""
+    # Test MongoDB connection
+    mongo_connected = False
+    mongo_error = None
+    try:
+        mongo_connected = test_connection()
+    except Exception as e:
+        mongo_connected = False
+        mongo_error = str(e)
+
+    # Test PDF reader
+    pdf_reader_working = False
+    pdf_reader_error = None
+    try:
+        sample_path = os.path.join('data', 'multimodal', 'sample.pdf')
+        if os.path.exists(sample_path):
+            text = extract_text_from_pdf(sample_path, max_chars=100)
+            pdf_reader_working = len(text) > 0
+        else:
+            pdf_reader_error = f"Sample PDF not found at {sample_path}"
+    except Exception as e:
+        pdf_reader_working = False
+        pdf_reader_error = str(e)
+
+    return jsonify({
+        'status': 'ok',
+        'mongodb': 'connected' if mongo_connected else 'disconnected',
+        'mongodb_error': mongo_error,
+        'pdf_reader': 'working' if pdf_reader_working else 'not working',
+        'pdf_reader_error': pdf_reader_error,
+        'timestamp': datetime.datetime.now().isoformat()
+    })
+
+@app.route('/test-connection')
+def test_connection_route():
+    """Simple test endpoint for connection testing."""
+    return jsonify({
+        'message': 'Connection successful!',
+        'timestamp': datetime.datetime.now().isoformat()
+    })
+
+@app.route('/api/test')
+def api_test():
+    """Test API endpoint."""
+    return jsonify({
+        'message': 'API is working!',
+        'pdf_reader_path': os.path.abspath('./data/multimodal/pdf_reader.py') if os.path.exists('./data/multimodal/pdf_reader.py') else 'File not found',
+        'timestamp': datetime.datetime.now().isoformat()
+    })
+
+@app.route('/debug/routes')
+def debug_routes():
+    """List all routes."""
+    routes = []
+    for rule in app.url_map.iter_rules():
+        routes.append({
+            'endpoint': rule.endpoint,
+            'methods': [method for method in rule.methods if method != 'OPTIONS' and method != 'HEAD'],
+            'path': str(rule)
+        })
+    return jsonify(routes)
+
+@app.route('/debug/env')
+def debug_env():
+    """Show environment variables (with sensitive info hidden)."""
+    # Return environment variables (hide sensitive info)
+    mongo_uri = os.environ.get('MONGO_URI', 'not set')
+    if 'mongodb+srv://' in mongo_uri:
+        # Hide password in the URI
+        parts = mongo_uri.split('@')
+        if len(parts) > 1:
+            auth_part = parts[0].split('://')
+            if len(auth_part) > 1:
+                user_pass = auth_part[1].split(':')
+                if len(user_pass) > 1:
+                    # Replace password with asterisks
+                    hidden_uri = f"{auth_part[0]}://{user_pass[0]}:******@{parts[1]}"
+                    mongo_uri = hidden_uri
+
+    return jsonify({
+        'MONGO_URI': mongo_uri,
+        'CORS_ORIGINS': os.environ.get('CORS_ORIGINS', 'not set'),
+        'DEBUG': os.environ.get('DEBUG', 'not set'),
+        'PORT': os.environ.get('PORT', 'not set'),
+        'MONGO_DB_NAME': os.environ.get('MONGO_DB_NAME', 'not set'),
+        'MONGO_COLLECTION_NAME': os.environ.get('MONGO_COLLECTION_NAME', 'not set'),
+        'PYTHON_PATH': sys.executable,
+        'WORKING_DIR': os.getcwd(),
+        'FILES_IN_MULTIMODAL': os.listdir('data/multimodal') if os.path.exists('data/multimodal') else []
+    })
 
 @app.route('/api/process-image', methods=['POST'])
 def process_image():

@@ -1,8 +1,23 @@
-version: '3.9'
-
 services:
-  blackhole-fastapi:
-    build: .
+  blackhole_core_api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: blackhole_core_api
     ports:
       - "8000:8000"
-    container_name: blackhole_fastapi_container
+    environment:
+      - MONGO_URI=mongodb://mongo:27017/
+    depends_on:
+      - mongo
+
+  mongo:
+    image: mongo:7.0
+    container_name: blackhole_mongo
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo_data:/data/db
+
+volumes:
+  mongo_data:

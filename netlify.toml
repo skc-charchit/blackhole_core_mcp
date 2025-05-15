@@ -1,6 +1,6 @@
 [build]
   publish = "public"
-  command = ""  # No build command needed for static files
+  command = "node update_env.js"  # Run script to update env.js with environment variables
 
 [[redirects]]
   from = "/*"

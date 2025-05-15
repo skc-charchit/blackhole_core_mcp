@@ -38,7 +38,12 @@ load_dotenv()
 
 # Initialize Flask app
 app = Flask(__name__, static_folder='public')
-CORS(app)
+
+# Configure CORS
+cors_origins = os.getenv('CORS_ORIGINS', '*')
+if cors_origins != '*':
+    cors_origins = cors_origins.split(',')
+CORS(app, origins=cors_origins)
 
 # Configure upload folder
 UPLOAD_FOLDER = os.getenv('UPLOAD_DIR', 'uploads')
@@ -62,7 +67,7 @@ def health_check():
     """Health check endpoint."""
     # Check MongoDB connection
     mongo_status = test_connection()
-    
+
     return jsonify({
         'status': 'ok',
         'mongodb': 'connected' if mongo_status else 'disconnected'
@@ -74,27 +79,27 @@ def process_image():
     # Check if the post request has the file part
     if 'file' not in request.files:
         return jsonify({'error': 'No file part'}), 400
-    
+
     file = request.files['file']
-    
+
     # If user does not select file, browser also
     # submit an empty part without filename
     if file.filename == '':
         return jsonify({'error': 'No selected file'}), 400
-    
+
     if file and allowed_file(file.filename):
         filename = secure_filename(file.filename)
         filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
         file.save(filepath)
-        
+
         try:
             # Extract text from image
             extracted_text = extract_text_from_image(filepath, debug=True)
-            
+
             # Process with ArchiveSearchAgent
             agent = ArchiveSearchAgent()
             result = agent.plan({"document_text": extracted_text})
-            
+
             # Save result to MongoDB
             try:
                 collection = get_agent_outputs_collection()
@@ -104,7 +109,7 @@ def process_image():
                     logger.info("Result saved to MongoDB")
             except Exception as e:
                 logger.error(f"Error saving to MongoDB: {e}")
-            
+
             return jsonify({
                 'filename': filename,
                 'extracted_text': extracted_text,
@@ -113,7 +118,7 @@ def process_image():
         except Exception as e:
             logger.error(f"Error processing image: {e}")
             return jsonify({'error': str(e)}), 500
-    
+
     return jsonify({'error': 'File type not allowed'}), 400
 
 @app.route('/api/process-pdf', methods=['POST'])
@@ -122,27 +127,27 @@ def process_pdf():
     # Check if the post request has the file part
     if 'file' not in request.files:
         return jsonify({'error': 'No file part'}), 400
-    
+
     file = request.files['file']
-    
+
     # If user does not select file, browser also
     # submit an empty part without filename
     if file.filename == '':
         return jsonify({'error': 'No selected file'}), 400
-    
+
     if file and allowed_file(file.filename):
         filename = secure_filename(file.filename)
         filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
         file.save(filepath)
-        
+
         try:
             # Extract text from PDF
             extracted_text = extract_text_from_pdf(filepath, include_page_numbers=True, verbose=True)
-            
+
             # Process with ArchiveSearchAgent
             agent = ArchiveSearchAgent()
             result = agent.plan({"document_text": extracted_text})
-            
+
             # Save result to MongoDB
             try:
                 collection = get_agent_outputs_collection()
@@ -152,7 +157,7 @@ def process_pdf():
                     logger.info("Result saved to MongoDB")
             except Exception as e:
                 logger.error(f"Error saving to MongoDB: {e}")
-            
+
             return jsonify({
                 'filename': filename,
                 'extracted_text': extracted_text,
@@ -161,19 +166,19 @@ def process_pdf():
         except Exception as e:
             logger.error(f"Error processing PDF: {e}")
             return jsonify({'error': str(e)}), 500
-    
+
     return jsonify({'error': 'File type not allowed'}), 400
 
 @app.route('/api/weather', methods=['GET'])
 def get_weather():
     """Get weather data for a location."""
     location = request.args.get('location', 'London')
-    
+
     try:
         # Process with LiveDataAgent
         agent = LiveDataAgent(memory=[], api_url="https://wttr.in/{location}?format=j1".format(location=location))
         result = agent.plan({"query": f"{location} weather"})
-        
+
         # Save result to MongoDB
         try:
             collection = get_agent_outputs_collection()
@@ -183,7 +188,7 @@ def get_weather():
                 logger.info("Weather result saved to MongoDB")
         except Exception as e:
             logger.error(f"Error saving to MongoDB: {e}")
-        
+
         return jsonify(result)
     except Exception as e:
         logger.error(f"Error getting weather: {e}")
@@ -195,14 +200,14 @@ def search_archive():
     data = request.json
     if not data or 'query' not in data:
         return jsonify({'error': 'No query provided'}), 400
-    
+
     query = data['query']
-    
+
     try:
         # Process with ArchiveSearchAgent
         agent = ArchiveSearchAgent()
         result = agent.plan({"document_text": query})
-        
+
         # Save result to MongoDB
         try:
             collection = get_agent_outputs_collection()
@@ -212,7 +217,7 @@ def search_archive():
                 logger.info("Search result saved to MongoDB")
         except Exception as e:
             logger.error(f"Error saving to MongoDB: {e}")
-        
+
         return jsonify(result)
     except Exception as e:
         logger.error(f"Error searching archive: {e}")
@@ -224,12 +229,12 @@ def get_results():
     try:
         collection = get_agent_outputs_collection()
         results = list(collection.find({}, {'_id': 0}).sort('timestamp', -1).limit(100))
-        
+
         # Convert results to JSON-serializable format
         for result in results:
             if 'timestamp' in result:
                 result['timestamp'] = str(result['timestamp'])
-        
+
         return jsonify(results)
     except Exception as e:
         logger.error(f"Error getting results: {e}")
@@ -239,6 +244,6 @@ if __name__ == '__main__':
     port = int(os.getenv('PORT', 8000))
     host = os.getenv('HOST', '0.0.0.0')
     debug = os.getenv('DEBUG', 'false').lower() == 'true'
-    
+
     logger.info(f"Starting server on {host}:{port}")
     app.run(host=host, port=port, debug=debug)

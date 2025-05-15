@@ -9,6 +9,7 @@ RUN apt-get update && apt-get install -y \
     libxext6 \
     libxrender-dev \
     libgl1-mesa-glx \
+    curl \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy requirements first for better caching
@@ -24,5 +25,9 @@ RUN mkdir -p uploads logs temp processed public
 # Expose the port the app runs on
 EXPOSE 8000
 
-# Command to run the application
-CMD ["gunicorn", "--bind", "0.0.0.0:8000", "app:app"]
+# Add a healthcheck
+HEALTHCHECK --interval=30s --timeout=10s --start-period=30s --retries=3 \
+  CMD curl -f http://localhost:8000/api/health || exit 1
+
+# Command to run the application with environment variables
+CMD gunicorn --bind ${HOST:-0.0.0.0}:${PORT:-8000} --workers=4 --timeout=120 app:app

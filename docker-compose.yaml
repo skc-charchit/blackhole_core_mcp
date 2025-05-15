@@ -7,24 +7,36 @@ services:
     ports:
       - "8000:8000"
     environment:
-      - MONGO_URI=mongodb://mongo:27017/
-      - MONGO_URI_LOCAL=mongodb://mongo:27017/
+      # Use the MongoDB URI from .env file or fall back to the local MongoDB container
+      - MONGO_URI=${MONGO_URI:-mongodb://mongo:27017/blackhole_db}
+      - MONGO_URI_LOCAL=mongodb://mongo:27017/blackhole_db
       - DEBUG=false
       - MONGO_DB_NAME=blackhole_db
       - MONGO_COLLECTION_NAME=agent_outputs
       - PORT=8000
       - HOST=0.0.0.0
-      - UPLOAD_DIR=uploads
-      - TEMP_DIR=temp
-      - PROCESSED_DIR=processed
+      - UPLOAD_DIR=/app/uploads
+      - TEMP_DIR=/app/temp
+      - PROCESSED_DIR=/app/processed
       - LOG_LEVEL=info
-      - LOG_FILE=logs/blackhole.log
+      - LOG_FILE=/app/logs/blackhole.log
+      # CORS settings - update with your Netlify URL
+      - CORS_ORIGINS=${CORS_ORIGINS:-*}
     volumes:
       - ./uploads:/app/uploads
       - ./logs:/app/logs
+      - ./temp:/app/temp
+      - ./processed:/app/processed
+      - ./.env:/app/.env
     depends_on:
       - mongo
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
 
   mongo:
     image: mongo:7.0
@@ -34,6 +46,12 @@ services:
     volumes:
       - mongo_data:/data/db
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
 
 volumes:
   mongo_data:

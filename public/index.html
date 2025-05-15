@@ -202,12 +202,17 @@
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="env.js"></script>
     <script>
         // API base URL - change this for production
         // If you're deploying the backend separately, update this to point to your backend server
+        // For example: const API_BASE_URL = 'https://your-backend-server.com';
+
+        // This will try to get the API_BASE_URL from the environment variable if available (for Netlify)
+        // Otherwise, it will use an empty string for localhost or the default backend URL for production
         const API_BASE_URL = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
             ? '' // Empty string means same origin on localhost
-            : ''; // For Netlify deployment, we'll use a relative URL which will fail gracefully
+            : (window.API_BASE_URL || 'https://your-backend-server.com'); // Replace with your actual backend URL
 
         // Check if the backend is available
         let backendAvailable = false;

@@ -1,0 +1,11 @@
+[build]
+  publish = "public"
+  command = ""  # No build command needed for static files
+
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
+
+[dev]
+  framework = "#static"

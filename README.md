@@ -200,13 +200,34 @@ The interface provides the following functionality:
 
 ### Frontend Deployment (Netlify)
 
-If you want to deploy just the frontend to Netlify:
+To deploy the frontend to Netlify:
 
-1. Set the publish directory to `public` (not `dist`).
+1. Push your code to a Git repository (GitHub, GitLab, or Bitbucket).
 
-2. Configure environment variables in Netlify dashboard to point to your backend API.
+2. Log in to Netlify and click "New site from Git".
 
-3. Update the API_BASE_URL in the frontend code to point to your deployed backend.
+3. Select your repository and configure the deployment settings:
+   - Build command: (leave blank)
+   - Publish directory: `public`
+
+4. Click "Deploy site".
+
+5. After deployment, go to Site settings > Build & deploy > Environment variables and add:
+   - `API_BASE_URL`: Your backend API URL (e.g., https://your-backend-server.com)
+
+6. Trigger a new deployment for the environment variables to take effect.
+
+7. Your frontend should now be accessible at the Netlify URL (e.g., https://your-site-name.netlify.app).
+
+8. If you encounter a "Page not found" error, check that:
+   - The `netlify.toml` file is in the root directory
+   - The `_redirects` file is in the `public` directory
+   - The publish directory is set to `public`
+
+9. Update the API_BASE_URL in the frontend code to point to your deployed backend:
+   ```javascript
+   const API_BASE_URL = 'https://your-backend-server.com';
+   ```
 
 ## Modules
 

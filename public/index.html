@@ -204,7 +204,11 @@
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
     <script>
         // API base URL - change this for production
-        const API_BASE_URL = '';
+        // If you're deploying the backend separately, update this to point to your backend server
+        // Example: const API_BASE_URL = 'https://your-backend-server.com';
+        const API_BASE_URL = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
+            ? '' // Empty string means same origin on localhost
+            : 'https://your-backend-server.com'; // Replace with your actual backend URL
 
         // Show loading indicator
         function showLoading() {
@@ -240,7 +244,7 @@
                     body: formData
                 });
                 const data = await response.json();
-                
+
                 if (response.ok) {
                     document.getElementById('imageExtractedText').textContent = data.extracted_text;
                     document.getElementById('imageAgentOutput').textContent = formatJSON(data.agent_result);
@@ -274,7 +278,7 @@
                     body: formData
                 });
                 const data = await response.json();
-                
+
                 if (response.ok) {
                     document.getElementById('pdfExtractedText').textContent = data.extracted_text;
                     document.getElementById('pdfAgentOutput').textContent = formatJSON(data.agent_result);
@@ -308,7 +312,7 @@
                     body: JSON.stringify({ query })
                 });
                 const data = await response.json();
-                
+
                 if (response.ok) {
                     document.getElementById('searchOutput').textContent = formatJSON(data);
                     document.getElementById('searchResult').classList.remove('d-none');
@@ -335,12 +339,12 @@
             try {
                 const response = await fetch(`${API_BASE_URL}/api/weather?location=${encodeURIComponent(location)}`);
                 const data = await response.json();
-                
+
                 if (response.ok) {
                     // Create a more user-friendly display of weather data
                     const weatherOutput = document.getElementById('weatherOutput');
                     weatherOutput.innerHTML = '';
-                    
+
                     if (data.output && data.output.current_condition && data.output.current_condition.length > 0) {
                         const current = data.output.current_condition[0];
                         const weatherHtml = `
@@ -359,7 +363,7 @@
                     } else {
                         weatherOutput.textContent = formatJSON(data);
                     }
-                    
+
                     document.getElementById('weatherResult').classList.remove('d-none');
                 } else {
                     alert(`Error: ${data.error || 'Unknown error'}`);
@@ -375,26 +379,26 @@
         async function loadResults() {
             const resultsList = document.getElementById('resultsList');
             resultsList.innerHTML = '<p>Loading results...</p>';
-            
+
             try {
                 const response = await fetch(`${API_BASE_URL}/api/results`);
                 const data = await response.json();
-                
+
                 if (response.ok && Array.isArray(data)) {
                     resultsList.innerHTML = '';
-                    
+
                     if (data.length === 0) {
                         resultsList.innerHTML = '<p>No results found.</p>';
                         return;
                     }
-                    
+
                     data.forEach(result => {
                         const resultItem = document.createElement('div');
                         resultItem.className = 'result-item';
-                        
+
                         const timestamp = new Date(result.timestamp).toLocaleString();
                         const agent = result.agent || 'Unknown';
-                        
+
                         let outputHtml = '';
                         if (result.output) {
                             if (Array.isArray(result.output)) {
@@ -405,13 +409,13 @@
                                 outputHtml = `<p>${result.output}</p>`;
                             }
                         }
-                        
+
                         resultItem.innerHTML = `
                             <h6>${agent} - ${timestamp}</h6>
                             <p><strong>Input:</strong> ${formatJSON(result.input)}</p>
                             <div><strong>Output:</strong> ${outputHtml}</div>
                         `;
-                        
+
                         resultsList.appendChild(resultItem);
                     });
                 } else {
@@ -433,7 +437,7 @@
             try {
                 const response = await fetch(`${API_BASE_URL}/api/health`);
                 const data = await response.json();
-                
+
                 if (!response.ok || data.mongodb !== 'connected') {
                     alert('Warning: Backend services may not be fully operational. Please check server logs.');
                 }

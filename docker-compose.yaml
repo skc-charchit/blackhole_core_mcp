@@ -1,11 +1,8 @@
 version: '3.9'
 
 services:
-  blackhole-api:
+  blackhole-fastapi:
     build: .
-    container_name: blackhole-api
     ports:
       - "8000:8000"
-    volumes:
-      - .:/app
-    restart: unless-stopped
+    container_name: blackhole_fastapi_container

@@ -22,12 +22,13 @@ def run_pipeline():
 
     # Process PDF
     pdf_path = r"data/multimodal/sample.pdf"
-    if not os.path.exists(pdf_path):
-        print(f"❌ PDF file not found: {pdf_path}")
-        return
-
-    extracted_text_pdf = pdf_reader.extract_text_from_pdf(pdf_path)
+    extracted_text_pdf = pdf_reader.extract_text_from_pdf(pdf_path, include_page_numbers=True, verbose=True)
     print("\n📄 Extracted Text from PDF:\n", extracted_text_pdf)
+
+    # If there was an error with the PDF, handle it
+    if extracted_text_pdf.startswith("❌"):
+        print(f"Error processing PDF: {extracted_text_pdf}")
+        return
 
     # Combine both texts
     combined_text = extracted_text_img + "\n\n" + extracted_text_pdf

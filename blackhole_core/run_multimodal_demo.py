@@ -11,11 +11,8 @@ def test_pdf_reader():
     pdf_path = os.path.join(base_dir, "sample.pdf")
     print(f"Reading PDF from: {pdf_path}")
 
-    if not os.path.exists(pdf_path):
-        print(f"❌ PDF file not found at {pdf_path}")
-        return
-
-    text = extract_text_from_pdf(pdf_path)
+    # The extract_text_from_pdf function now handles file existence check internally
+    text = extract_text_from_pdf(pdf_path, include_page_numbers=True, verbose=True)
     print("Extracted Text:\n", text)
     print("-" * 60)
 

@@ -256,6 +256,33 @@ def process_image():
                 try_multiple_methods=True
             )
 
+            # Check if extraction failed
+            if extracted_text and extracted_text.startswith("❌ Error:"):
+                logger.warning(f"Image text extraction failed: {extracted_text}")
+                # Create a placeholder message
+                extracted_text = f"The image '{filename}' could not be processed. It may be corrupted or in an unsupported format."
+
+                # Create a placeholder image with error message if needed
+                try:
+                    import cv2
+                    import numpy as np
+                    error_img_path = os.path.join(app.config['UPLOAD_FOLDER'], f"error_{filename}.png")
+                    blank_img = np.ones((300, 500, 3), np.uint8) * 255  # White background
+                    # Add error text
+                    cv2.putText(
+                        blank_img,
+                        "Image could not be processed",
+                        (50, 150),
+                        cv2.FONT_HERSHEY_SIMPLEX,
+                        1,
+                        (0, 0, 255),
+                        2
+                    )
+                    cv2.imwrite(error_img_path, blank_img)
+                    logger.info(f"Created error image at {error_img_path}")
+                except Exception as e:
+                    logger.error(f"Error creating placeholder image: {e}")
+
             # Process with ArchiveSearchAgent
             agent = ArchiveSearchAgent()
             result = agent.plan({"document_text": extracted_text})
@@ -285,7 +312,41 @@ def process_image():
             })
         except Exception as e:
             logger.error(f"Error processing image: {e}")
-            return jsonify({'error': str(e)}), 500
+            # Create a friendly error message
+            error_message = f"The image '{filename}' could not be processed. It may be corrupted or in an unsupported format."
+
+            # Try to create a placeholder result
+            try:
+                agent = ArchiveSearchAgent()
+                result = agent.plan({"document_text": error_message})
+
+                # Save result to MongoDB
+                try:
+                    collection = get_agent_outputs_collection()
+                    if isinstance(result, dict):
+                        # Make a copy of the result to avoid modifying the original
+                        result_copy = result.copy()
+                        # Remove _id if exists
+                        result_copy.pop("_id", None)
+                        # Insert into MongoDB
+                        insert_result = collection.insert_one(result_copy)
+                        # Convert ObjectId to string
+                        result_copy["_id"] = str(insert_result.inserted_id)
+                        # Update the result with the copy
+                        result = result_copy
+                        logger.info("Error result saved to MongoDB")
+                except Exception as mongo_err:
+                    logger.error(f"Error saving to MongoDB: {mongo_err}")
+
+                return jsonify({
+                    'filename': filename,
+                    'extracted_text': error_message,
+                    'agent_result': result,
+                    'error': str(e)
+                })
+            except Exception as agent_err:
+                logger.error(f"Error creating placeholder result: {agent_err}")
+                return jsonify({'error': error_message, 'details': str(e)}), 500
 
     return jsonify({'error': 'File type not allowed'}), 400
 

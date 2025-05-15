@@ -1,166 +1,287 @@
-# 🚀 Blackhole Core Project
+# 🚀 Blackhole Core MCP
 
 A modular AI-powered framework for ingesting multimodal data (images, PDFs, text), processing them via agents and pipelines, and storing structured insights into MongoDB.
 
----
-
 ## 📖 Table of Contents
 
-- [📂 blackhole_core/](blackhole_core/README.md)
-- [📂 blackhole_core/data_source/](blackhole_core/data_source/README.md)
-- [📂 data/multimodal/](data/multimodal/README.md)
-- [📂 data/pipelines/](data/pipelines/README.md)
-- [📂 adapter/](adapter/README.md)
-- [📂 api/](api/README.md)
+- [Overview](#overview)
+- [Features](#features)
+- [Project Structure](#project-structure)
+- [Installation](#installation)
+- [Environment Setup](#environment-setup)
+- [Usage](#usage)
+- [Modules](#modules)
+- [Testing](#testing)
+- [Troubleshooting](#troubleshooting)
+- [Contributing](#contributing)
 
----
+## Overview
 
-## 📦 Project Structure
+Blackhole Core MCP is a framework designed to process various types of data (text, images, PDFs) using AI agents and store the results in a structured format. It provides a modular architecture that allows for easy extension and customization.
 
----
+## Features
 
+- **Multimodal Data Processing**: Extract text from images and PDFs
+- **Agent-Based Architecture**: Process data using specialized agents
+- **MongoDB Integration**: Store and retrieve structured data
+- **Modular Design**: Easily extend with new agents and data sources
+- **Robust Error Handling**: Graceful fallbacks and detailed logging
+- **Comprehensive Testing**: Unit tests for core components
+
+## Project Structure
+
+```
 project_root/
-├── adapter/
-├── api/
-├── blackhole_core/
-│ └── data_source/
-├── data/
-│ ├── multimodal/
-│ └── pipelines/
-├── .env
-├── .gitignore
-├── Dockerfile
-├── docker-compose.yaml
-├── LICENSE
-├── README.md
-├── requirements.txt
+├── adapter/                  # Adapter modules for external systems
+├── api/                      # API endpoints
+├── blackhole_core/           # Core functionality
+│   ├── agents/               # AI agents for data processing
+│   └── data_source/          # Data source connectors
+├── data/                     # Data processing modules
+│   ├── multimodal/           # Multimodal data processing (images, PDFs)
+│   └── pipelines/            # Processing pipelines
+├── logs/                     # Log files
+├── tests/                    # Test modules
+├── utils/                    # Utility modules
+├── .env                      # Environment variables
+├── .gitignore                # Git ignore file
+├── Dockerfile                # Docker configuration
+├── docker-compose.yaml       # Docker Compose configuration
+├── LICENSE                   # License file
+├── README.md                 # This file
+├── requirements.txt          # Python dependencies
+└── run_tests.py              # Test runner script
+```
 
----
+## Installation
 
+### Prerequisites
 
----
+- Python 3.8 or higher
+- MongoDB (local or cloud)
+- Tesseract OCR (for image processing)
 
-## 📜 Environment Setup
+### Setup
+
+1. Clone the repository:
+   ```bash
+   git clone https://github.com/yourusername/blackhole_core_mcp.git
+   cd blackhole_core_mcp
+   ```
+
+2. Create and activate a virtual environment:
+   ```bash
+   python -m venv venv
+   source venv/bin/activate  # On Windows: venv\Scripts\activate
+   ```
+
+3. Install dependencies:
+   ```bash
+   pip install -r requirements.txt
+   ```
+
+4. Install Tesseract OCR:
+   - Windows: Download and install from [Tesseract OCR](https://github.com/UB-Mannheim/tesseract/wiki)
+   - Linux: `sudo apt-get install tesseract-ocr`
+   - macOS: `brew install tesseract`
+
+## Environment Setup
+
+1. Copy the example environment file or create a new `.env` file:
+   ```bash
+   # If .env.example exists
+   cp .env.example .env
+   # Otherwise create a new file
+   touch .env
+   ```
+
+2. Edit the `.env` file with your configuration:
+   ```
+   # API key for external services
+   API_KEY=your_api_key
+
+   # MongoDB connection strings
+   MONGO_URI=mongodb+srv://username:password@cluster.mongodb.net/
+   MONGO_URI_LOCAL=mongodb://localhost:27017/
+
+   # Application settings
+   DEBUG=true
+
+   # MongoDB database and collection names
+   MONGO_DB_NAME=blackhole_db
+   MONGO_COLLECTION_NAME=agent_outputs
+
+   # Tesseract OCR path (if needed)
+   TESSERACT_PATH=C:\\Program Files\\Tesseract-OCR\\tesseract.exe
+   ```
+
+## Usage
+
+### Running with Docker
 
 ```bash
-# Install dependencies
-pip install -r requirements.txt
-
-# Ensure MongoDB is running (via docker-compose or locally)
+# Start MongoDB and the API
 docker-compose up -d
 
+# Check logs
+docker-compose logs -f
+```
+
+### Running Locally
+
+```bash
+# Ensure MongoDB is running (via docker-compose or locally)
+docker-compose up -d mongo
 
 # Run the demo pipeline to process a sample PDF and image
 python data/pipelines/blackhole_demo.py
 
+# Run the combined demo pipeline
+python data/pipelines/combined_demo_pipeline.py
 
-
----
-
-## 📂 `blackhole_core/README.md`
-
-```markdown
-# 📦 blackhole_core
-
-This module contains essential backend scripts for handling data sources and MongoDB integration.
-
-## 📜 Scripts
-
-- **data_source/mongodb.py** — Establishes and manages MongoDB connection for data storage.
-
----
-
-## 📈 Bash Commands
-
-```bash
-# Test MongoDB connection script
+# Test MongoDB connection
 python blackhole_core/data_source/mongodb.py
 
+# Start the web server
+python app.py
+```
 
+### Accessing the Web Interface
 
----
+Once the server is running, you can access the web interface at:
+- http://localhost:8000
 
-## 📂 `blackhole_core/data_source/README.md`
+The interface provides the following functionality:
+- Upload and process images
+- Upload and process PDFs
+- Search the archive
+- Get weather data
+- View all results stored in MongoDB
 
-```markdown
-# 📦 data_source
+## Deployment to Production
 
-Holds sample archives and database connection scripts.
+### Option 1: Docker Deployment
 
-## 📜 Files
+1. Update the `.env` file with production settings:
+   ```
+   DEBUG=false
+   MONGO_URI=your_production_mongodb_uri
+   ```
 
-- **mongodb.py** — Connects to MongoDB using `.env` configuration.
-- **sample_archive.csv** — Sample CSV archive used for offline lookup by agents.
+2. Build and start the containers:
+   ```bash
+   docker-compose up -d --build
+   ```
 
----
+3. The application will be available at http://your-server-ip:8000
 
-## 📈 Bash Commands
+### Option 2: Traditional Deployment
+
+1. Set up a server with Python and MongoDB installed.
+
+2. Clone the repository and navigate to the project directory.
+
+3. Install dependencies:
+   ```bash
+   pip install -r requirements.txt
+   ```
+
+4. Update the `.env` file with production settings.
+
+5. Run the deployment script:
+   ```bash
+   bash deploy.sh
+   ```
+
+6. For production use, it's recommended to set up a reverse proxy (Nginx/Apache) and use Gunicorn:
+   ```bash
+   gunicorn --bind 0.0.0.0:8000 app:app
+   ```
+
+### Frontend Deployment (Netlify)
+
+If you want to deploy just the frontend to Netlify:
+
+1. Set the publish directory to `public` (not `dist`).
+
+2. Configure environment variables in Netlify dashboard to point to your backend API.
+
+3. Update the API_BASE_URL in the frontend code to point to your deployed backend.
+
+## Modules
+
+### blackhole_core
+
+Core functionality for the project:
+
+- **agents**: AI agents for processing data
+  - `archive_search_agent.py`: Searches archives based on document text
+  - `live_data_agent.py`: Fetches and processes live data from APIs
+
+- **data_source**: Data source connectors
+  - `mongodb.py`: MongoDB connection and operations
+
+### data
+
+Data processing modules:
+
+- **multimodal**: Multimodal data processing
+  - `image_ocr.py`: Extracts text from images using OCR
+  - `pdf_reader.py`: Extracts text from PDF documents
+
+- **pipelines**: Processing pipelines
+  - `blackhole_demo.py`: Demo pipeline for processing images
+  - `combined_demo_pipeline.py`: Demo pipeline for processing both images and PDFs
+
+### utils
+
+Utility modules:
+
+- `logger.py`: Centralized logging configuration
+
+## Testing
+
+Run tests using the test runner script:
 
 ```bash
-# Run MongoDB connection check
-python mongodb.py
+# Run all tests
+python run_tests.py
 
+# Run tests with higher verbosity
+python run_tests.py -v 3
 
+# Run tests in a specific directory
+python run_tests.py -d tests/specific_dir
 
----
+# Run tests matching a specific pattern
+python run_tests.py -p test_specific*.py
+```
 
-## 📂 `data/multimodal/README.md`
+## Troubleshooting
 
-```markdown
-# 📦 data/multimodal
+### MongoDB Connection Issues
 
-Multimodal processing tools for images and PDFs.
+- Check if MongoDB is running: `docker-compose ps`
+- Verify MongoDB URI in `.env` file
+- Check logs for connection errors: `cat logs/blackhole_*.log`
 
-## 📜 Scripts
+### Image Processing Issues
 
-- **image_ocr.py** — Performs OCR on images and extracts text.
-- **pdf_reader.py** — Extracts text from PDF documents.
+- Verify Tesseract OCR is installed and in PATH
+- Check the path in `.env` file if using Windows
+- Try preprocessing the image for better OCR results
 
----
+### General Issues
 
-## 📈 Bash Commands
+- Check the logs in the `logs` directory
+- Increase verbosity with `DEBUG=true` in `.env`
+- Run tests to verify component functionality
 
-```bash
-# Run OCR on a sample image
-python data/multimodal/image_ocr.py data/multimodal/sample_image.png
+## Contributing
 
-# Extract text from a PDF
-python data/multimodal/pdf_reader.py data/multimodal/sample.pdf
+1. Fork the repository
+2. Create a feature branch: `git checkout -b feature-name`
+3. Commit your changes: `git commit -am 'Add feature'`
+4. Push to the branch: `git push origin feature-name`
+5. Submit a pull request
 
-
----
-
-## 📂 `data/pipelines/README.md`
-
-```markdown
-# 📦 data/pipelines
-
-Main orchestration pipelines to process multimodal inputs, run agents, and store results.
-
-## 📜 Scripts
-
-- **blackhole_demo.py** — Loads a sample PDF and image, processes them, runs an agent on the extracted text, and stores insights into MongoDB.
-
----
-
-## 📈 Bash Commands
-
-```bash
-# Run the demo pipeline
-python data/pipelines/blackhole_demo.py
-
-# 📦 api
-
-This module will house the MCP Adapter REST API service for Blackhole Core.
-
-## 📜 Scripts
-
-- **mcp_adapter.py** — (To be built in STEP 6) Exposes REST API endpoints to interact with the core pipeline.
-
----
-
-## 📈 Planned Bash Command (Post-STEP 6)
-
-```bash
-# Run the MCP Adapter API
-python api/mcp_adapter.py

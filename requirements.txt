@@ -1,18 +1,40 @@
-pymongo
-# python-dotenv
-pytesseract
-opencv-python
-pillow
-# pandas
-PyPDF2
-# rapidfuzz
-# Flask
-requests
-fastapi
-uvicorn
-pydantic
-Flask==3.0.0
-rapidfuzz==3.6.1
-pandas
-python-dotenv==1.0.1
-pytesseract
+# Core dependencies
+numpy>=1.20.0
+pandas>=1.3.0
+scikit-learn>=1.0.0
+matplotlib>=3.4.0
+scipy>=1.7.0
+pymongo>=4.0.0
+python-dotenv>=0.19.0
+
+# Web server
+Flask>=2.0.0
+flask-cors>=3.0.10
+gunicorn>=20.1.0
+werkzeug>=2.0.0
+
+# API alternatives (if needed)
+fastapi>=0.68.0
+uvicorn>=0.15.0
+pydantic>=1.8.0
+
+# Image processing
+pillow>=8.3.0
+pytesseract>=0.3.8
+opencv-python>=4.5.0
+
+# PDF processing
+PyPDF2>=2.0.0
+pdfminer.six>=20200720
+
+# NLP and text processing
+nltk>=3.6.0
+rapidfuzz>=3.0.0
+
+# Utilities
+tqdm>=4.62.0
+requests>=2.26.0
+pytz>=2021.1
+
+# Testing
+pytest>=6.2.5

@@ -1,24 +1,38 @@
 import os
 import sys
+import io
+import tempfile
+import subprocess
 from PyPDF2 import PdfReader
 from PyPDF2.errors import PdfReadError
 
-def extract_text_from_pdf(pdf_path, include_page_numbers=True, verbose=True):
+# Try to import optional OCR libraries
+try:
+    import pytesseract
+    from PIL import Image
+    HAS_OCR = True
+except ImportError:
+    HAS_OCR = False
+
+def extract_text_from_pdf(pdf_path, include_page_numbers=True, verbose=True, try_ocr=True):
     """
-    Extract text from a PDF file.
+    Extract text from a PDF file with enhanced capabilities.
 
     Args:
         pdf_path (str): Path to the PDF file
         include_page_numbers (bool): Whether to include page numbers in the output
         verbose (bool): Whether to print status messages
+        try_ocr (bool): Whether to try OCR if no text is found in the PDF
 
     Returns:
         str: Extracted text or error message
     """
+    # Check file extension
     supported_formats = ('.pdf',)
     if not pdf_path.lower().endswith(supported_formats):
         return f"❌ Unsupported file type: {os.path.splitext(pdf_path)[-1]}"
 
+    # Check if file exists
     if not os.path.exists(pdf_path):
         return f"❌ File not found: {pdf_path}"
 
@@ -26,24 +40,75 @@ def extract_text_from_pdf(pdf_path, include_page_numbers=True, verbose=True):
         if verbose:
             print(f"📄 Reading PDF from: {pdf_path}")
 
+        # Try to read the PDF with PyPDF2
         reader = PdfReader(pdf_path)
 
         if len(reader.pages) == 0:
             return "⚠️ PDF has no pages."
 
         extracted_text = ""
+        empty_pages = 0
 
+        # Extract text from each page
         for page_number, page in enumerate(reader.pages, start=1):
             text = page.extract_text()
+
+            # If text extraction failed, try alternative methods
+            if not text or text.isspace():
+                empty_pages += 1
+                if verbose:
+                    print(f"⚠️ No text found on page {page_number} using standard extraction.")
+
+            # Add the text to the result
             if text:
                 if include_page_numbers:
                     extracted_text += f"\n--- Page {page_number} ---\n{text}\n"
                 else:
                     extracted_text += f"{text}\n"
 
+        # Check if we got any text
         result = extracted_text.strip()
+
+        # If no text was found and OCR is available, try OCR
+        if (not result or empty_pages == len(reader.pages)) and try_ocr and HAS_OCR:
+            if verbose:
+                print("🔍 No text found using standard extraction. Trying OCR...")
+
+            ocr_text = ""
+
+            # Process each page with OCR
+            for page_number, page in enumerate(reader.pages, start=1):
+                if verbose:
+                    print(f"🔍 Processing page {page_number} with OCR...")
+
+                try:
+                    # Extract the page as an image
+                    from pdf2image import convert_from_path
+                    images = convert_from_path(pdf_path, first_page=page_number, last_page=page_number)
+
+                    if images:
+                        # Process the image with OCR
+                        page_text = pytesseract.image_to_string(images[0])
+
+                        if page_text:
+                            if include_page_numbers:
+                                ocr_text += f"\n--- Page {page_number} (OCR) ---\n{page_text}\n"
+                            else:
+                                ocr_text += f"{page_text}\n"
+                except Exception as ocr_err:
+                    if verbose:
+                        print(f"⚠️ OCR failed for page {page_number}: {str(ocr_err)}")
+
+            # If OCR found text, use it
+            if ocr_text.strip():
+                result = ocr_text.strip()
+                if verbose:
+                    print("✅ Successfully extracted text using OCR.")
+
+        # If still no text, return a warning
         if not result:
-            return "⚠️ No text found in PDF. The file may be scanned images or protected."
+            return "⚠️ No text found in PDF. The file may contain only images or be protected."
+
         return result
 
     except PdfReadError as e:

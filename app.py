@@ -14,6 +14,14 @@ from bson import ObjectId
 import json
 from datetime import datetime
 
+# Try to import optional dependencies
+try:
+    import textract
+    HAS_TEXTRACT = True
+except ImportError:
+    HAS_TEXTRACT = False
+    print("⚠️ textract library not installed. Some document types may not be processed correctly.")
+
 # Add project root to sys.path
 sys.path.append(os.path.abspath(os.path.dirname(__file__)))
 
@@ -63,11 +71,20 @@ CORS(app, origins=cors_origins)
 
 # Configure upload folder
 UPLOAD_FOLDER = os.getenv('UPLOAD_DIR', 'uploads')
-ALLOWED_EXTENSIONS = {'txt', 'pdf', 'png', 'jpg', 'jpeg', 'webp'}
+ALLOWED_EXTENSIONS = {
+    # Text files
+    'txt', 'md', 'rtf', 'csv', 'json', 'xml', 'html', 'htm',
+    # Document files
+    'pdf', 'doc', 'docx', 'ppt', 'pptx', 'xls', 'xlsx', 'odt', 'ods', 'odp',
+    # Image files
+    'png', 'jpg', 'jpeg', 'gif', 'bmp', 'tiff', 'tif', 'webp', 'svg', 'heic', 'heif',
+    # Archive files (for future use)
+    'zip', 'rar', '7z', 'tar', 'gz'
+}
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
-app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16MB max upload size
+app.config['MAX_CONTENT_LENGTH'] = 50 * 1024 * 1024  # 50MB max upload size
 
 def allowed_file(filename):
     """Check if the file extension is allowed."""
@@ -196,8 +213,13 @@ def process_image():
         file.save(filepath)
 
         try:
-            # Extract text from image
-            extracted_text = extract_text_from_image(filepath, debug=True)
+            # Extract text from image with enhanced capabilities
+            extracted_text = extract_text_from_image(
+                filepath,
+                debug=True,
+                preprocessing_level=2,
+                try_multiple_methods=True
+            )
 
             # Process with ArchiveSearchAgent
             agent = ArchiveSearchAgent()
@@ -232,9 +254,9 @@ def process_image():
 
     return jsonify({'error': 'File type not allowed'}), 400
 
-@app.route('/api/process-pdf', methods=['POST'])
-def process_pdf():
-    """Process an uploaded PDF."""
+@app.route('/api/process-document', methods=['POST'])
+def process_document():
+    """Process any uploaded document (PDF, DOCX, PPTX, etc.)."""
     # Check if the post request has the file part
     if 'file' not in request.files:
         return jsonify({'error': 'No file part'}), 400
@@ -252,8 +274,49 @@ def process_pdf():
         file.save(filepath)
 
         try:
-            # Extract text from PDF
-            extracted_text = extract_text_from_pdf(filepath, include_page_numbers=True, verbose=True)
+            # Determine file type and extract text accordingly
+            file_ext = os.path.splitext(filename)[1].lower()
+
+            if file_ext == '.pdf':
+                # Extract text from PDF with enhanced capabilities
+                extracted_text = extract_text_from_pdf(
+                    filepath,
+                    include_page_numbers=True,
+                    verbose=True,
+                    try_ocr=True
+                )
+            elif file_ext in ['.doc', '.docx', '.ppt', '.pptx', '.xls', '.xlsx']:
+                # Extract text from Office documents
+                if HAS_TEXTRACT:
+                    try:
+                        extracted_text = textract.process(filepath).decode('utf-8')
+                    except Exception as e:
+                        return jsonify({'error': f'Error processing Office document: {str(e)}'}), 500
+                else:
+                    # Fallback for Office documents when textract is not available
+                    return jsonify({
+                        'error': 'Cannot process Office documents. The textract library is not installed.',
+                        'suggestion': 'Please install textract or convert your document to PDF format.'
+                    }), 400
+            elif file_ext in ['.txt', '.md', '.csv', '.json', '.xml', '.html', '.htm']:
+                # Read text files directly
+                try:
+                    with open(filepath, 'r', encoding='utf-8', errors='ignore') as f:
+                        extracted_text = f.read()
+                except Exception as e:
+                    return jsonify({'error': f'Error reading text file: {str(e)}'}), 500
+            else:
+                # Try to handle other file types
+                if HAS_TEXTRACT:
+                    try:
+                        extracted_text = textract.process(filepath).decode('utf-8')
+                    except Exception as e:
+                        return jsonify({'error': f'Cannot extract text from this file type: {str(e)}'}), 500
+                else:
+                    return jsonify({
+                        'error': 'Cannot process this file type. The textract library is not installed.',
+                        'suggestion': 'Please convert your document to PDF, image, or text format.'
+                    }), 400
 
             # Process with ArchiveSearchAgent
             agent = ArchiveSearchAgent()
@@ -283,10 +346,15 @@ def process_pdf():
                 'agent_result': result
             })
         except Exception as e:
-            logger.error(f"Error processing PDF: {e}")
+            logger.error(f"Error processing document: {e}")
             return jsonify({'error': str(e)}), 500
 
     return jsonify({'error': 'File type not allowed'}), 400
+
+@app.route('/api/process-pdf', methods=['POST'])
+def process_pdf():
+    """Process an uploaded PDF (redirects to process-document)."""
+    return process_document()
 
 @app.route('/api/weather', methods=['GET'])
 def get_weather():

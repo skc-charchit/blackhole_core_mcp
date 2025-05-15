@@ -5,3 +5,5 @@ fastapi
 uvicorn
 pydantic
 mangum
+boto3
+dnspython

@@ -1,6 +1,6 @@
 [build]
   publish = "dist"
-  command = "mkdir -p public && pip install -r requirements-netlify.txt"
+  command = "bash ./build.sh"
 
 [build.environment]
   PYTHON_VERSION = "3.11"
@@ -23,4 +23,4 @@
 [dev]
   command = "uvicorn data.api.mcp_adapter:app --host 127.0.0.1 --port 8888"
   port = 8888
-  publish = "public"
+  publish = "dist"

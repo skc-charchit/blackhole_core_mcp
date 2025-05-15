@@ -1,0 +1,17 @@
+{
+  "name": "blackhole-core-mcp",
+  "version": "1.0.0",
+  "description": "Blackhole Core MCP API",
+  "main": "index.js",
+  "scripts": {
+    "build": "bash ./build.sh"
+  },
+  "keywords": [
+    "netlify",
+    "serverless",
+    "python",
+    "fastapi"
+  ],
+  "author": "",
+  "license": "MIT"
+}

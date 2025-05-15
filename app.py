@@ -21,6 +21,9 @@ from data.multimodal.pdf_reader import extract_text_from_pdf
 from blackhole_core.agents.archive_search_agent import ArchiveSearchAgent
 from blackhole_core.agents.live_data_agent import LiveDataAgent
 
+# Import debug routes
+from debug_routes import register_debug_routes
+
 # Import logger
 try:
     from utils.logger import get_logger
@@ -45,6 +48,9 @@ if cors_origins != '*':
     cors_origins = cors_origins.split(',')
 CORS(app, origins=cors_origins)
 
+# Register debug routes
+register_debug_routes(app)
+
 # Configure upload folder
 UPLOAD_FOLDER = os.getenv('UPLOAD_DIR', 'uploads')
 ALLOWED_EXTENSIONS = {'txt', 'pdf', 'png', 'jpg', 'jpeg', 'webp'}
@@ -62,16 +68,7 @@ def index():
     """Serve the main index page."""
     return send_from_directory('public', 'index.html')
 
-@app.route('/api/health')
-def health_check():
-    """Health check endpoint."""
-    # Check MongoDB connection
-    mongo_status = test_connection()
-
-    return jsonify({
-        'status': 'ok',
-        'mongodb': 'connected' if mongo_status else 'disconnected'
-    })
+# Health check endpoint is now defined in debug_routes.py
 
 @app.route('/api/process-image', methods=['POST'])
 def process_image():

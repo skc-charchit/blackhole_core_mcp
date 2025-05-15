@@ -48,6 +48,10 @@
         <div class="header">
             <h1>🚀 Blackhole Core MCP</h1>
             <p class="lead">A modular AI-powered framework for processing multimodal data</p>
+            <div class="mt-3">
+                <button id="testConnectionBtn" class="btn btn-primary">Test Backend Connection</button>
+                <div id="testConnectionResult" class="mt-2"></div>
+            </div>
         </div>
 
         <ul class="nav nav-tabs" id="myTab" role="tablist">
@@ -204,15 +208,15 @@
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
     <script src="env.js"></script>
     <script>
-        // API base URL - change this for production
-        // If you're deploying the backend separately, update this to point to your backend server
-        // For example: const API_BASE_URL = 'https://your-backend-server.com';
-
-        // This will try to get the API_BASE_URL from the environment variable if available (for Netlify)
-        // Otherwise, it will use an empty string for localhost or the default backend URL for production
+        // API base URL - loaded from env.js
+        // The env.js file should set window.API_BASE_URL to your backend URL
+        // For local development, we'll use an empty string (same origin)
+        // For production, we'll use the value from env.js
         const API_BASE_URL = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
             ? '' // Empty string means same origin on localhost
-            : (window.API_BASE_URL || 'https://your-backend-server.com'); // Replace with your actual backend URL
+            : (window.API_BASE_URL || 'https://blackhole-core-api.onrender.com'); // Use the value from env.js or fallback to Render URL
+
+        console.log('Using API_BASE_URL:', API_BASE_URL);
 
         // Check if the backend is available
         let backendAvailable = false;
@@ -561,6 +565,63 @@
                 resultsList.innerHTML = `<p>Error loading results: ${error.message}</p>`;
             }
         }
+
+        // Test backend connection button
+        document.getElementById('testConnectionBtn').addEventListener('click', async function() {
+            const resultDiv = document.getElementById('testConnectionResult');
+            resultDiv.innerHTML = '<div class="alert alert-info">Testing connection...</div>';
+
+            try {
+                const response = await fetch(`${API_BASE_URL}/test-connection`);
+
+                if (response.ok) {
+                    const data = await response.json();
+                    resultDiv.innerHTML = `<div class="alert alert-success">
+                        Connection successful! Server time: ${data.timestamp}
+                    </div>`;
+                    backendAvailable = true;
+                } else {
+                    const errorData = await response.json().catch(() => ({}));
+                    resultDiv.innerHTML = `<div class="alert alert-danger">
+                        Error: ${errorData.error || 'Unknown error'} (Status: ${response.status})
+                    </div>`;
+                    backendAvailable = false;
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `<div class="alert alert-danger">
+                    Connection failed: ${error.message}
+                </div>
+                <div class="alert alert-info">
+                    API_BASE_URL: ${API_BASE_URL}
+                </div>
+                <div class="mt-2">
+                    <button id="showDebugInfo" class="btn btn-sm btn-outline-secondary">Show Debug Info</button>
+                    <div id="debugInfo" class="mt-2" style="display: none;"></div>
+                </div>`;
+
+                document.getElementById('showDebugInfo').addEventListener('click', function() {
+                    const debugInfo = document.getElementById('debugInfo');
+                    debugInfo.style.display = debugInfo.style.display === 'none' ? 'block' : 'none';
+
+                    if (debugInfo.style.display === 'block') {
+                        debugInfo.innerHTML = `
+                            <div class="card">
+                                <div class="card-header">Debug Information</div>
+                                <div class="card-body">
+                                    <p><strong>window.API_BASE_URL:</strong> ${window.API_BASE_URL || 'not set'}</p>
+                                    <p><strong>API_BASE_URL variable:</strong> ${API_BASE_URL}</p>
+                                    <p><strong>window.location.hostname:</strong> ${window.location.hostname}</p>
+                                    <p><strong>window.location.origin:</strong> ${window.location.origin}</p>
+                                    <p><strong>Error details:</strong> ${error.toString()}</p>
+                                </div>
+                            </div>
+                        `;
+                    }
+                });
+
+                backendAvailable = false;
+            }
+        });
 
         // Run health check on page load
         window.addEventListener('load', checkHealth);

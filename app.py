@@ -78,12 +78,26 @@ app.json_encoder = MongoJSONEncoder
 cors_origins = os.getenv('CORS_ORIGINS', '*')
 if cors_origins != '*':
     cors_origins = cors_origins.split(',')
-CORS(app, origins=cors_origins)
+# Add Netlify domain to allowed origins if not already included
+netlify_domain = 'https://blackhole-core.netlify.app'
+if cors_origins != '*' and netlify_domain not in cors_origins:
+    cors_origins.append(netlify_domain)
+CORS(app, origins=cors_origins, supports_credentials=True)
 
 # Debug routes are defined below
 
 # Configure upload folder
-UPLOAD_FOLDER = os.getenv('UPLOAD_DIR', 'uploads')
+# Check if we're running on Render (ephemeral filesystem)
+IS_RENDER = os.environ.get('RENDER', 'false').lower() == 'true'
+if IS_RENDER:
+    # On Render, use /tmp for uploads (more reliable for ephemeral filesystem)
+    UPLOAD_FOLDER = os.path.join('/tmp', 'blackhole_uploads')
+    logger.info(f"Running on Render, using temporary upload folder: {UPLOAD_FOLDER}")
+else:
+    # Local development or other hosting
+    UPLOAD_FOLDER = os.getenv('UPLOAD_DIR', 'uploads')
+    logger.info(f"Using upload folder: {UPLOAD_FOLDER}")
+
 ALLOWED_EXTENSIONS = {
     # Text files
     'txt', 'md', 'rtf', 'csv', 'json', 'xml', 'html', 'htm',

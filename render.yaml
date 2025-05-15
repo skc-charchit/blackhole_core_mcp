@@ -1,0 +1,32 @@
+services:
+  - type: web
+    name: blackhole-core-api
+    env: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: python app.py
+    envVars:
+      - key: PORT
+        value: 10000
+      - key: HOST
+        value: 0.0.0.0
+      - key: DEBUG
+        value: false
+      - key: RENDER
+        value: true
+      - key: CORS_ORIGINS
+        value: https://blackhole-core.netlify.app,http://localhost:3000,http://localhost:8000
+      - key: MONGO_URI
+        fromDatabase:
+          name: blackhole-mongodb
+          property: connectionString
+      - key: MONGO_DB_NAME
+        value: blackhole_core
+      - key: MONGO_COLLECTION_NAME
+        value: agent_outputs
+      - key: UPLOAD_DIR
+        value: /tmp/blackhole_uploads
+
+databases:
+  - name: blackhole-mongodb
+    plan: free
+    databaseName: blackhole_core

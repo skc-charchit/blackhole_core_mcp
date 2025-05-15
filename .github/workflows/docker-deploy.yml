@@ -1,39 +1,36 @@
-name: Build and Deploy Docker Container
+name: Docker Image CI
 
 on:
   push:
-    branches:
-      - main
+    branches: [ "main" ]
   pull_request:
-    branches:
-      - main
+    branches: [ "main" ]
 
 jobs:
-  build-and-deploy:
+  build:
     runs-on: ubuntu-latest
 
     steps:
-      - name: 📥 Checkout Repository
+      - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: 🐍 Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.11'
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
 
-      - name: 📦 Install dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install -r requirements.txt
+      - name: List files (for debugging paths)
+        run: ls -la
 
-      - name: 🐳 Build Docker Image
-        run: |
-          docker build -t blackhole-fastapi .
+      - name: Build Docker image
+        run: docker build -f ./Dockerfile -t blackhole_core_mcp:latest .
 
-      - name: 🐳 Run Docker Container (optional)
-        run: |
-          docker run -d --name blackhole-api -p 8000:8000 blackhole-fastapi
+      - name: (Optional) Run container to test
+        run: docker run -d -p 8000:8000 --name blackhole_test_container blackhole_core_mcp:latest
 
-      - name: 📜 Show running containers (for debug)
+      - name: (Optional) Check running containers
+        run: docker ps
+
+      # Cleanup
+      - name: Stop and remove container
         run: |
-          docker ps -a
+          docker stop blackhole_test_container
+          docker rm blackhole_test_container

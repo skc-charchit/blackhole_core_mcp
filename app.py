@@ -10,6 +10,9 @@ from flask import Flask, request, jsonify, send_from_directory
 from flask_cors import CORS
 from werkzeug.utils import secure_filename
 from dotenv import load_dotenv
+from bson import ObjectId
+import json
+from datetime import datetime
 
 # Add project root to sys.path
 sys.path.append(os.path.abspath(os.path.dirname(__file__)))
@@ -37,8 +40,18 @@ except ImportError:
 # Load environment variables
 load_dotenv()
 
+# Custom JSON encoder to handle MongoDB ObjectId
+class MongoJSONEncoder(json.JSONEncoder):
+    def default(self, obj):
+        if isinstance(obj, ObjectId):
+            return str(obj)
+        if isinstance(obj, datetime):
+            return obj.isoformat()
+        return super().default(obj)
+
 # Initialize Flask app
 app = Flask(__name__, static_folder='public')
+app.json_encoder = MongoJSONEncoder
 
 # Configure CORS
 cors_origins = os.getenv('CORS_ORIGINS', '*')
@@ -65,6 +78,11 @@ def index():
     """Serve the main index page."""
     return send_from_directory('public', 'index.html')
 
+@app.route('/env.js')
+def env_js():
+    """Serve the env.js file."""
+    return send_from_directory('public', 'env.js')
+
 @app.route('/api/health')
 def health_check():
     """Health check endpoint."""
@@ -83,7 +101,7 @@ def health_check():
     try:
         sample_path = os.path.join('data', 'multimodal', 'sample.pdf')
         if os.path.exists(sample_path):
-            text = extract_text_from_pdf(sample_path, max_chars=100)
+            text = extract_text_from_pdf(sample_path, include_page_numbers=True, verbose=False)
             pdf_reader_working = len(text) > 0
         else:
             pdf_reader_error = f"Sample PDF not found at {sample_path}"
@@ -189,8 +207,16 @@ def process_image():
             try:
                 collection = get_agent_outputs_collection()
                 if isinstance(result, dict):
-                    result.pop("_id", None)  # Remove _id if exists
-                    collection.insert_one(result)
+                    # Make a copy of the result to avoid modifying the original
+                    result_copy = result.copy()
+                    # Remove _id if exists
+                    result_copy.pop("_id", None)
+                    # Insert into MongoDB
+                    insert_result = collection.insert_one(result_copy)
+                    # Convert ObjectId to string
+                    result_copy["_id"] = str(insert_result.inserted_id)
+                    # Update the result with the copy
+                    result = result_copy
                     logger.info("Result saved to MongoDB")
             except Exception as e:
                 logger.error(f"Error saving to MongoDB: {e}")
@@ -237,8 +263,16 @@ def process_pdf():
             try:
                 collection = get_agent_outputs_collection()
                 if isinstance(result, dict):
-                    result.pop("_id", None)  # Remove _id if exists
-                    collection.insert_one(result)
+                    # Make a copy of the result to avoid modifying the original
+                    result_copy = result.copy()
+                    # Remove _id if exists
+                    result_copy.pop("_id", None)
+                    # Insert into MongoDB
+                    insert_result = collection.insert_one(result_copy)
+                    # Convert ObjectId to string
+                    result_copy["_id"] = str(insert_result.inserted_id)
+                    # Update the result with the copy
+                    result = result_copy
                     logger.info("Result saved to MongoDB")
             except Exception as e:
                 logger.error(f"Error saving to MongoDB: {e}")
@@ -268,8 +302,16 @@ def get_weather():
         try:
             collection = get_agent_outputs_collection()
             if isinstance(result, dict):
-                result.pop("_id", None)  # Remove _id if exists
-                collection.insert_one(result)
+                # Make a copy of the result to avoid modifying the original
+                result_copy = result.copy()
+                # Remove _id if exists
+                result_copy.pop("_id", None)
+                # Insert into MongoDB
+                insert_result = collection.insert_one(result_copy)
+                # Convert ObjectId to string
+                result_copy["_id"] = str(insert_result.inserted_id)
+                # Update the result with the copy
+                result = result_copy
                 logger.info("Weather result saved to MongoDB")
         except Exception as e:
             logger.error(f"Error saving to MongoDB: {e}")
@@ -297,8 +339,16 @@ def search_archive():
         try:
             collection = get_agent_outputs_collection()
             if isinstance(result, dict):
-                result.pop("_id", None)  # Remove _id if exists
-                collection.insert_one(result)
+                # Make a copy of the result to avoid modifying the original
+                result_copy = result.copy()
+                # Remove _id if exists
+                result_copy.pop("_id", None)
+                # Insert into MongoDB
+                insert_result = collection.insert_one(result_copy)
+                # Convert ObjectId to string
+                result_copy["_id"] = str(insert_result.inserted_id)
+                # Update the result with the copy
+                result = result_copy
                 logger.info("Search result saved to MongoDB")
         except Exception as e:
             logger.error(f"Error saving to MongoDB: {e}")

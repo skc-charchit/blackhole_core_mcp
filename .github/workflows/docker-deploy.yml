@@ -1,10 +1,9 @@
-name: Docker Image CI
+name: Build and Push Docker Image
 
 on:
   push:
-    branches: [ "main" ]
-  pull_request:
-    branches: [ "main" ]
+    branches:
+      - main
 
 jobs:
   build:
@@ -17,20 +16,6 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: List files (for debugging paths)
-        run: ls -la
-
       - name: Build Docker image
-        run: docker build -f ./Dockerfile -t blackhole_core_mcp:latest .
-
-      - name: (Optional) Run container to test
-        run: docker run -d -p 8000:8000 --name blackhole_test_container blackhole_core_mcp:latest
-
-      - name: (Optional) Check running containers
-        run: docker ps
-
-      # Cleanup
-      - name: Stop and remove container
         run: |
-          docker stop blackhole_test_container
-          docker rm blackhole_test_container
+          docker build -f ./Dockerfile -t blackhole_core_mcp:latest .

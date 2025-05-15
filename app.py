@@ -390,14 +390,26 @@ def get_weather():
         return jsonify({'error': str(e)}), 500
 
 @app.route('/api/search', methods=['POST'])
-def search_archive():
-    """Search the archive with text query."""
+def search_archive_post():
+    """Search the archive with text query (POST method)."""
     data = request.json
     if not data or 'query' not in data:
         return jsonify({'error': 'No query provided'}), 400
 
     query = data['query']
+    return _search_archive(query)
 
+@app.route('/api/search-archive', methods=['GET'])
+def search_archive_get():
+    """Search the archive with text query (GET method)."""
+    query = request.args.get('query')
+    if not query:
+        return jsonify({'error': 'No query provided'}), 400
+
+    return _search_archive(query)
+
+def _search_archive(query):
+    """Common function for searching the archive."""
     try:
         # Process with ArchiveSearchAgent
         agent = ArchiveSearchAgent()

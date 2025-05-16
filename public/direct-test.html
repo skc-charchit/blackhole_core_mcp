@@ -40,28 +40,29 @@
 <body>
     <h1>Direct Connection Test</h1>
     <p>This page tests direct connection to the Render backend and the Netlify proxy.</p>
-    
+
     <div>
         <h2>Test Endpoints</h2>
         <h3>Direct to Render</h3>
         <button onclick="testEndpoint('https://blackhole-core-api.onrender.com/api/health')">Test /api/health (Direct)</button>
         <button onclick="testEndpoint('https://blackhole-core-api.onrender.com/api/test')">Test /api/test (Direct)</button>
-        
+
         <h3>Via Netlify Proxy</h3>
-        <button onclick="testEndpoint('/api/health')">Test /api/health (Proxy)</button>
-        <button onclick="testEndpoint('/api/test')">Test /api/test (Proxy)</button>
+        <button onclick="testEndpoint('/.netlify/functions/proxy/api/health')">Test /api/health (Proxy)</button>
+        <button onclick="testEndpoint('/.netlify/functions/proxy/api/test')">Test /api/test (Proxy)</button>
+        <button onclick="testEndpoint('/.netlify/functions/test')">Test Netlify Function</button>
     </div>
-    
+
     <div>
         <h2>Results</h2>
         <div id="results"></div>
     </div>
-    
+
     <script>
         async function testEndpoint(url) {
             const resultsDiv = document.getElementById('results');
             resultsDiv.innerHTML = `<p>Testing ${url}...</p>`;
-            
+
             try {
                 const response = await fetch(url, {
                     method: 'GET',
@@ -69,14 +70,21 @@
                         'Accept': 'application/json'
                     }
                 });
-                
+
                 const responseHeaders = {};
                 response.headers.forEach((value, name) => {
                     responseHeaders[name] = value;
                 });
-                
-                const data = await response.json();
-                
+
+                const responseText = await response.text();
+                let data;
+
+                try {
+                    data = JSON.parse(responseText);
+                } catch (e) {
+                    throw new Error(`Invalid JSON response: ${responseText.substring(0, 100)}...`);
+                }
+
                 resultsDiv.innerHTML = `
                     <div class="success">
                         <h3>✅ Success! Status: ${response.status}</h3>

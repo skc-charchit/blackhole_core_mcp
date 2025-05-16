@@ -205,9 +205,9 @@ The API documentation provides interactive testing of all endpoints.
    uvicorn main:app --host 0.0.0.0 --port 8000 --workers 4
    ```
 
-### Deployment Setup (Render Backend + Netlify Frontend)
+### Deployment Setup (Render Backend + Netlify Frontend with Proxy)
 
-This project is configured for deployment with the backend on Render and the frontend on Netlify:
+This project is configured for deployment with the backend on Render and the frontend on Netlify, using a Netlify proxy to avoid CORS issues:
 
 #### Backend Deployment (Render)
 
@@ -239,13 +239,24 @@ This project is configured for deployment with the backend on Render and the fro
 4. Click "Deploy site".
 
 5. After deployment, go to Site settings > Build & deploy > Environment variables and add:
-   - `API_BASE_URL`: Your Render backend URL (e.g., https://blackhole-core-api.onrender.com)
+   - `RENDER_BACKEND_URL`: Your Render backend URL (e.g., https://blackhole-core-api.onrender.com)
 
 6. Trigger a new deployment for the environment variables to take effect.
 
 7. Your frontend will be accessible at the Netlify URL (e.g., https://blackholebody.netlify.app).
 
-8. The frontend is automatically configured to use the Render backend URL in production.
+8. The frontend is automatically configured to use the Netlify proxy to avoid CORS issues.
+
+#### How the Proxy Works
+
+The Netlify proxy works as follows:
+
+1. The frontend makes requests to `/api/*` endpoints on the Netlify domain
+2. Netlify redirects these requests to the `/.netlify/functions/proxy` function
+3. The proxy function forwards the requests to the Render backend
+4. The proxy function returns the response from the Render backend to the frontend
+
+This approach avoids CORS issues because the frontend is making requests to the same domain (Netlify) rather than directly to the Render backend.
 
 ## Modules
 

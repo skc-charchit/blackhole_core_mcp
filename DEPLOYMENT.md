@@ -91,9 +91,9 @@ This guide will help you deploy both the frontend and backend components of the 
    uvicorn main:app --host 0.0.0.0 --port 8000 --workers 4
    ```
 
-## Deployment Setup (Render Backend + Netlify Frontend)
+## Deployment Setup (Render Backend + Netlify Frontend with Proxy)
 
-This project is configured for deployment with the backend on Render and the frontend on Netlify:
+This project is configured for deployment with the backend on Render and the frontend on Netlify, using a Netlify proxy to avoid CORS issues:
 
 ### Backend Deployment (Render)
 
@@ -132,14 +132,45 @@ This project is configured for deployment with the backend on Render and the fro
 
 3. **Configure environment variables in Netlify**:
    - Go to Site settings > Build & deploy > Environment variables
-   - Add `API_BASE_URL` with your Render backend URL (e.g., https://blackhole-core-api.onrender.com)
+   - Add `RENDER_BACKEND_URL` with your Render backend URL (e.g., https://blackhole-core-api.onrender.com)
    - Trigger a new deployment for the environment variables to take effect
 
 4. **Verify the frontend deployment**:
    - Visit your Netlify site (e.g., https://blackholebody.netlify.app)
-   - Open the browser console (F12) and check that `API_BASE_URL` is correctly set to your Render backend URL
+   - Open the browser console (F12) and check that the API requests are being made to the Netlify proxy
    - Try using the various features (image processing, PDF processing, etc.)
    - Check the "Results" tab to see if data is being retrieved from MongoDB
+
+### How the Proxy Works
+
+The Netlify proxy works as follows:
+
+1. The frontend makes requests to `/api/*` endpoints on the Netlify domain
+2. Netlify redirects these requests to the `/.netlify/functions/proxy` function
+3. The proxy function forwards the requests to the Render backend
+4. The proxy function returns the response from the Render backend to the frontend
+
+This approach avoids CORS issues because the frontend is making requests to the same domain (Netlify) rather than directly to the Render backend.
+
+### Troubleshooting the Proxy
+
+If you encounter issues with the proxy:
+
+1. **Check the Netlify function logs**:
+   - Go to the Netlify dashboard
+   - Click on your site
+   - Go to Functions > proxy
+   - Check the logs for any errors
+
+2. **Test the proxy directly**:
+   - Visit your Netlify site and navigate to `/direct-test.html`
+   - This page allows you to test both direct connections to Render and connections via the Netlify proxy
+   - Compare the results to identify any issues
+
+3. **Check the CORS headers**:
+   - Visit your Netlify site and navigate to `/cors-headers-test.html`
+   - This page tests the CORS headers of the Render backend
+   - Make sure the Render backend is returning the correct CORS headers
 
 ## Connecting Frontend to Backend
 

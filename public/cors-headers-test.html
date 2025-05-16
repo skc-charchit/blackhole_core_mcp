@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CORS Headers Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        pre {
+            background-color: #f5f5f5;
+            padding: 10px;
+            border-radius: 5px;
+            overflow-x: auto;
+        }
+        button {
+            padding: 10px 15px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 10px 0;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        .error {
+            color: red;
+        }
+        .success {
+            color: green;
+        }
+    </style>
+</head>
+<body>
+    <h1>CORS Headers Test</h1>
+    <p>This page tests the CORS headers of the Render backend API.</p>
+    
+    <div>
+        <h2>Test URL</h2>
+        <input type="text" id="url" value="https://blackhole-core-api.onrender.com/api/health" style="width: 100%; padding: 8px; margin-bottom: 10px;">
+        <button onclick="testCorsHeaders()">Test CORS Headers</button>
+    </div>
+    
+    <div>
+        <h2>Results</h2>
+        <div id="results"></div>
+    </div>
+    
+    <script>
+        async function testCorsHeaders() {
+            const url = document.getElementById('url').value;
+            const resultsDiv = document.getElementById('results');
+            resultsDiv.innerHTML = `<p>Testing CORS headers for ${url}...</p>`;
+            
+            try {
+                // First, try a preflight OPTIONS request
+                const preflightResponse = await fetch(url, {
+                    method: 'OPTIONS',
+                    headers: {
+                        'Origin': window.location.origin,
+                        'Access-Control-Request-Method': 'GET',
+                        'Access-Control-Request-Headers': 'Content-Type'
+                    },
+                    mode: 'cors'
+                });
+                
+                const preflightHeaders = {};
+                preflightResponse.headers.forEach((value, name) => {
+                    preflightHeaders[name] = value;
+                });
+                
+                // Now try a regular GET request
+                const response = await fetch(url, {
+                    method: 'GET',
+                    headers: {
+                        'Origin': window.location.origin
+                    },
+                    mode: 'cors'
+                });
+                
+                const responseHeaders = {};
+                response.headers.forEach((value, name) => {
+                    responseHeaders[name] = value;
+                });
+                
+                // Check for CORS headers
+                const corsHeaders = [
+                    'access-control-allow-origin',
+                    'access-control-allow-methods',
+                    'access-control-allow-headers',
+                    'access-control-allow-credentials',
+                    'access-control-expose-headers',
+                    'access-control-max-age'
+                ];
+                
+                const preflightCorsHeaders = {};
+                const responseCorsHeaders = {};
+                
+                corsHeaders.forEach(header => {
+                    if (preflightHeaders[header]) {
+                        preflightCorsHeaders[header] = preflightHeaders[header];
+                    }
+                    if (responseHeaders[header]) {
+                        responseCorsHeaders[header] = responseHeaders[header];
+                    }
+                });
+                
+                // Check if CORS is properly configured
+                const hasPreflightCors = Object.keys(preflightCorsHeaders).length > 0;
+                const hasResponseCors = Object.keys(responseCorsHeaders).length > 0;
+                const isCorsConfigured = hasPreflightCors || hasResponseCors;
+                
+                // Display results
+                resultsDiv.innerHTML = `
+                    <div class="${isCorsConfigured ? 'success' : 'error'}">
+                        <h3>${isCorsConfigured ? '✅ CORS is configured' : '❌ CORS is not configured'}</h3>
+                        
+                        <h4>Preflight OPTIONS Request:</h4>
+                        <p>Status: ${preflightResponse.status} ${preflightResponse.statusText}</p>
+                        <h5>CORS Headers:</h5>
+                        <pre>${JSON.stringify(preflightCorsHeaders, null, 2) || 'No CORS headers found'}</pre>
+                        <h5>All Headers:</h5>
+                        <pre>${JSON.stringify(preflightHeaders, null, 2)}</pre>
+                        
+                        <h4>GET Request:</h4>
+                        <p>Status: ${response.status} ${response.statusText}</p>
+                        <h5>CORS Headers:</h5>
+                        <pre>${JSON.stringify(responseCorsHeaders, null, 2) || 'No CORS headers found'}</pre>
+                        <h5>All Headers:</h5>
+                        <pre>${JSON.stringify(responseHeaders, null, 2)}</pre>
+                        
+                        <h4>Recommendations:</h4>
+                        <ul>
+                            ${!isCorsConfigured ? '<li class="error">The server needs to add CORS headers</li>' : ''}
+                            ${preflightHeaders['access-control-allow-origin'] !== '*' && preflightHeaders['access-control-allow-origin'] !== window.location.origin ? 
+                                `<li class="error">The server needs to allow requests from ${window.location.origin}</li>` : ''}
+                            ${responseHeaders['access-control-allow-origin'] !== '*' && responseHeaders['access-control-allow-origin'] !== window.location.origin ? 
+                                `<li class="error">The server needs to allow requests from ${window.location.origin}</li>` : ''}
+                        </ul>
+                    </div>
+                `;
+            } catch (error) {
+                resultsDiv.innerHTML = `
+                    <div class="error">
+                        <h3>❌ Error: ${error.message}</h3>
+                        <p>This could be due to CORS issues or the server being unavailable.</p>
+                        <h4>Debug Information:</h4>
+                        <pre>
+URL: ${url}
+Origin: ${window.location.origin}
+Error: ${error}
+Error Stack: ${error.stack}
+                        </pre>
+                        
+                        <h4>Recommendations:</h4>
+                        <ul>
+                            <li>Check if the server is running and accessible</li>
+                            <li>Make sure the server has CORS headers configured</li>
+                            <li>The server should include the following headers in its response:
+                                <pre>
+Access-Control-Allow-Origin: ${window.location.origin} (or *)
+Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS
+Access-Control-Allow-Headers: Content-Type, Accept
+                                </pre>
+                            </li>
+                        </ul>
+                    </div>
+                `;
+            }
+        }
+    </script>
+</body>
+</html>

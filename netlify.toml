@@ -1,6 +1,15 @@
 [build]
   publish = "public"
-  command = "node update_env.js"  # Run script to update env.js with environment variables
+  command = "node update_env.js && pip install -r requirements.txt -t netlify/functions/api/lib"
+
+[functions]
+  directory = "netlify/functions"
+  node_bundler = "esbuild"
+
+[[redirects]]
+  from = "/api/*"
+  to = "/.netlify/functions/api/:splat"
+  status = 200
 
 [[redirects]]
   from = "/*"

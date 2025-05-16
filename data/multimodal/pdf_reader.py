@@ -146,9 +146,9 @@ if __name__ == "__main__":
         # Try to find a sample PDF in the current directory or parent directories
         current_dir = os.path.dirname(os.path.abspath(__file__))
         sample_paths = [
-            os.path.join(current_dir, "sample.pdf"),
-            os.path.join(current_dir, "..", "sample.pdf"),
-            os.path.join(current_dir, "..", "..", "sample.pdf")
+            os.path.join(current_dir, "mathbook.pdf"),
+            os.path.join(current_dir, "..", "mathbook.pdf"),
+            os.path.join(current_dir, "..", "..", "mathbook.pdf")
         ]
 
         pdf_path = None

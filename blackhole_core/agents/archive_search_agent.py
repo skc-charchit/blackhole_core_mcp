@@ -1,6 +1,6 @@
 #blachkhole_core.agents.archive_search_agent.py
 import pandas as pd
-from datetime import datetime
+from datetime import datetime, timezone
 from bson import ObjectId
 from blackhole_core.data_source.mongodb import get_mongo_client
 import os
@@ -31,19 +31,42 @@ class ArchiveSearchAgent:
         threshold = 60  # Similarity threshold (0-100)
 
         for _, row in df.iterrows():
-            row_text = " ".join([str(value) for value in row.values])
-            similarity = fuzz.partial_ratio(document_text.lower(), row_text.lower())
-            if similarity >= threshold:
-                matches.append({
-                    "match_score": similarity,
-                    **row.to_dict()
-                })
+            # Check each column individually for better matching
+            for col, value in row.items():
+                # Skip empty values
+                if pd.isna(value) or str(value).strip() == "":
+                    continue
+
+                # Convert to string and lowercase for comparison
+                value_str = str(value).lower()
+                doc_text_lower = document_text.lower()
+
+                # Try different fuzzy matching methods
+                token_ratio = fuzz.token_set_ratio(doc_text_lower, value_str)
+                partial_ratio = fuzz.partial_ratio(doc_text_lower, value_str)
+
+                # Use the higher of the two scores
+                similarity = max(token_ratio, partial_ratio)
+
+                if similarity >= threshold:
+                    # Only add each row once
+                    match_entry = {
+                        "match_score": similarity,
+                        "matched_on": col,
+                        "matched_value": value,
+                        **row.to_dict()
+                    }
+
+                    # Check if this row is already in matches
+                    if not any(m.get('title') == row['title'] for m in matches):
+                        matches.append(match_entry)
+                    break  # Move to next row once we find a match
 
         result = {
             "agent": "ArchiveSearchAgent",
             "input": query,
             "output": matches if matches else "No matches found.",
-            "timestamp": datetime.now().isoformat(),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
             "metadata": {"source_file": self.archive_path}
         }
         return result

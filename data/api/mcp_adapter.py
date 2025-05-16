@@ -1,12 +1,17 @@
+import os
+import sys
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 from typing import Dict, Any, Type
-from datetime import datetime
+from datetime import datetime, timezone
 import uvicorn
+
+# Add project root to sys.path
+sys.path.append(os.path.abspath(os.path.dirname(os.path.dirname(os.path.dirname(__file__)))))
 
 # Import your agents here
 from blackhole_core.agents.archive_search_agent import ArchiveSearchAgent
-# from blackhole_core.agents.live_data_agent import LiveDataAgent   # (example for future)
+from blackhole_core.agents.live_data_agent import LiveDataAgent
 
 # FastAPI app instance
 app = FastAPI(
@@ -23,7 +28,7 @@ class TaskRequest(BaseModel):
 # Available agent mappings
 available_agents: Dict[str, Type] = {
     "ArchiveSearchAgent": ArchiveSearchAgent,
-    # "LiveDataAgent": LiveDataAgent  # Example: uncomment when added
+    "LiveDataAgent": LiveDataAgent
 }
 
 # Home route
@@ -50,7 +55,7 @@ def run_task(request: TaskRequest) -> Dict[str, Any]:
         "agent": agent_name,
         "input": {"document_text": task_input},
         "output": result,
-        "timestamp": str(datetime.utcnow())
+        "timestamp": str(datetime.now(timezone.utc))
     }
 
     return response

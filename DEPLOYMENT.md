@@ -1,4 +1,4 @@
-# Deployment Guide for Blackhole Core MCP
+# Deployment Guide for Blackhole Core MCP (FastAPI Version)
 
 This guide will help you deploy both the frontend and backend components of the Blackhole Core MCP application and ensure they connect properly.
 
@@ -11,36 +11,7 @@ This guide will help you deploy both the frontend and backend components of the 
 
 ## Backend Deployment
 
-### Option 1: Using Render (Recommended)
-
-1. **Create a Render account** at https://render.com if you don't have one already.
-
-2. **Connect your GitHub repository** to Render.
-
-3. **Create a new Web Service**:
-   - Select your repository
-   - Choose "Python" as the environment
-   - Set the build command to: `pip install -r requirements.txt`
-   - Set the start command to: `python app.py`
-
-4. **Configure environment variables**:
-   - PORT: 10000
-   - HOST: 0.0.0.0
-   - DEBUG: false
-   - RENDER: true
-   - CORS_ORIGINS: https://blackhole-core.netlify.app,http://localhost:3000,http://localhost:8000
-   - MONGO_URI: Your MongoDB connection string
-   - MONGO_DB_NAME: blackhole_core
-   - MONGO_COLLECTION_NAME: agent_outputs
-   - UPLOAD_DIR: /tmp/blackhole_uploads
-
-5. **Deploy the service** and note the URL (e.g., https://blackhole-core-api.onrender.com).
-
-6. **Verify the deployment**:
-   - Visit the health check endpoint: `https://your-render-url.onrender.com/api/health`
-   - Check the Render logs for any errors
-
-### Option 2: Using Docker
+### Option 1: Using Docker
 
 1. **Clone the repository**:
    ```bash
@@ -100,20 +71,29 @@ This guide will help you deploy both the frontend and backend components of the 
 4. **Configure environment variables**:
    - Copy the production environment file:
      ```bash
-     cp .env.render .env
+     cp .env.example .env
      ```
    - Edit the `.env` file to update the MongoDB URI and CORS settings
 
 5. **Start the server**:
    ```bash
    # For development
-   python app.py
+   uvicorn main:app --host 0.0.0.0 --port 8000 --reload
+
+   # Or use the provided scripts
+   # On Linux/Mac:
+   ./start.sh
+
+   # On Windows:
+   start.bat
 
    # For production
-   gunicorn --bind 0.0.0.0:8000 --workers=4 --timeout=120 app:app
+   uvicorn main:app --host 0.0.0.0 --port 8000 --workers 4
    ```
 
-## Frontend Deployment to Netlify
+## Deployment to Netlify (Frontend + Backend)
+
+This project is configured for easy deployment to Netlify with both frontend and backend:
 
 1. **Push your code to a Git repository** (GitHub, GitLab, or Bitbucket)
 
@@ -121,82 +101,85 @@ This guide will help you deploy both the frontend and backend components of the 
    - Click "New site from Git"
    - Select your repository
    - Set the publish directory to `public` (not `dist`)
-   - Set the build command to `node update_env.js`
+   - Set the build command to `node update_env.js && pip install -r requirements.txt -t netlify/functions/api/lib`
    - Click "Deploy site"
 
 3. **Configure environment variables in Netlify**:
    - Go to Site settings > Build & deploy > Environment variables
-   - Add `API_BASE_URL` with your Render backend URL (e.g., https://blackhole-core-api.onrender.com)
+   - Add `MONGO_URI` with your MongoDB connection string
+   - Add `CORS_ORIGINS` with `*` (or your specific origins)
    - Trigger a new deployment for the environment variables to take effect
 
 4. **Verify the deployment**:
-   - Visit your Netlify site (e.g., https://blackhole-core.netlify.app)
-   - Open the browser console (F12) and check that `API_BASE_URL` is correctly set
+   - Visit your Netlify site
+   - Open the browser console (F12) and check that `API_BASE_URL` is correctly set to `/.netlify/functions/api`
    - Try using the various features (image processing, PDF processing, etc.)
    - Check the "Results" tab to see if data is being retrieved from MongoDB
 
+5. **How it works**:
+   - The frontend is served from the `public` directory
+   - The backend API is served from Netlify Functions at `/.netlify/functions/api`
+   - The frontend automatically detects if it's running on Netlify and uses the correct API URL
+   - The Netlify Function acts as a proxy to the FastAPI application
+
 ## Connecting Frontend to Backend
 
-The frontend and backend need to communicate with each other. Here's how to ensure they're properly connected:
+When deploying to Netlify, the frontend and backend are automatically connected. Here's how it works:
 
-1. **Update CORS settings in the backend**:
-   - Make sure your Netlify domain is included in the CORS_ORIGINS in the `.env` file:
-     ```
-     CORS_ORIGINS=https://your-netlify-app.netlify.app,http://localhost:3000,http://localhost:8000
-     ```
+1. **CORS settings**:
+   - The Netlify function has CORS headers configured in the `netlify.toml` file
+   - The backend API also has CORS configured to allow all origins (`*`)
+   - This ensures that the frontend can communicate with the backend API
 
-2. **Update API_BASE_URL in the frontend**:
-   - Make sure the API_BASE_URL in `public/index.html` points to your backend server:
-     ```javascript
-     const API_BASE_URL = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
-         ? '' // Empty string means same origin on localhost
-         : 'https://your-backend-server.com'; // Replace with your actual backend URL
-     ```
+2. **API_BASE_URL configuration**:
+   - The `env.js` file is automatically updated during deployment
+   - It sets `API_BASE_URL` to `/.netlify/functions/api` when running on Netlify
+   - It sets `API_BASE_URL` to an empty string (same origin) when running locally
+   - This ensures that the frontend uses the correct API URL in all environments
 
-3. **Test the connection**:
+3. **Testing the connection**:
    - Visit your Netlify site
    - Open the browser console (F12) and check for any CORS or connection errors
    - Try using the various features (image processing, PDF processing, etc.)
    - Check the "Results" tab to see if data is being retrieved from MongoDB
 
+4. **Local development**:
+   - When running locally, the frontend will connect to the local backend
+   - Start the backend with `uvicorn main:app --host 0.0.0.0 --port 8000`
+   - The frontend will automatically use the local backend API
+
 ## Troubleshooting
 
-### Backend Issues (Render)
+### Backend Issues
 
 1. **MongoDB Connection Issues**:
-   - Check the MongoDB URI in the environment variables on Render
-   - Make sure the MongoDB Atlas cluster is running and accessible
-   - Ensure your IP is whitelisted in MongoDB Atlas
-   - Check the Render logs for connection errors
+   - Check the MongoDB URI in the environment variables
+   - Make sure the MongoDB server is running and accessible
+   - Ensure your IP is whitelisted if using MongoDB Atlas
+   - Check the server logs for connection errors
 
 2. **Server Not Starting**:
-   - Check the Render logs for errors
+   - Check the server logs for errors
    - Make sure all dependencies are listed in requirements.txt
-   - Verify that the start command is correct: `python app.py`
-   - Check if the Python version on Render is compatible with your code
+   - Verify that the start command is correct
+   - Check if the Python version is compatible with your code
 
 3. **File Upload Issues**:
-   - Remember that Render has an ephemeral filesystem
-   - Files uploaded to Render will be lost when the service restarts
-   - Make sure the UPLOAD_DIR is set to `/tmp/blackhole_uploads`
+   - Make sure the UPLOAD_DIR exists and is writable
+   - Check the file permissions
    - Consider using cloud storage for persistent files
-
-4. **Slow First Request**:
-   - The free tier of Render will spin down after periods of inactivity
-   - The first request after inactivity will be slow as the service spins up
-   - This is normal behavior for the free tier
 
 ### Frontend Issues (Netlify)
 
 1. **CORS Errors**:
    - Check the browser console for CORS errors
-   - Make sure the Netlify domain is included in the CORS_ORIGINS on Render
+   - Make sure the Netlify domain is included in the CORS_ORIGINS in your backend
    - Verify that the CORS headers in netlify.toml are correctly configured
    - Check that the backend server is properly configured for CORS
 
 2. **API Connection Errors**:
    - Check that the API_BASE_URL is correctly set in the environment variables on Netlify
-   - Make sure the Render backend is running and accessible
+   - Make sure the backend server is running and accessible
    - Try accessing the backend directly to verify it's working
    - Check for any network issues (firewall, security groups, etc.)
 
@@ -208,10 +191,10 @@ The frontend and backend need to communicate with each other. Here's how to ensu
 
 ## Monitoring and Maintenance
 
-1. **Monitoring the Backend (Render)**:
-   - Check the Render logs regularly
-   - Set up Render's built-in monitoring
-   - Consider upgrading to a paid plan for better performance and reliability
+1. **Monitoring the Backend**:
+   - Check the server logs regularly
+   - Set up monitoring tools like Prometheus/Grafana
+   - Configure log rotation for production logs
    - Set up alerts for service outages
 
 2. **Monitoring the Frontend (Netlify)**:
@@ -221,20 +204,16 @@ The frontend and backend need to communicate with each other. Here's how to ensu
 
 3. **Updating the Application**:
    - Push the latest changes to your GitHub repository
-   - Render and Netlify will automatically deploy the changes
-   - Check the deployment logs for any errors
+   - Netlify will automatically deploy the frontend changes
+   - Update your backend server with the latest changes
    - Test the application after deployment
 
 4. **Backing Up MongoDB**:
-   - Set up regular backups of your MongoDB Atlas database
-   - Use MongoDB Atlas's built-in backup features
+   - Set up regular backups of your MongoDB database
+   - If using MongoDB Atlas, use its built-in backup features
    - Test the restore process periodically
 
 5. **Managing Costs**:
-   - Monitor your usage of Render and Netlify
+   - Monitor your usage of hosting services
    - Stay within the free tier limits if possible
-   - Be aware that the free tier of Render has limitations:
-     - Services spin down after inactivity
-     - Limited compute resources
-     - Ephemeral filesystem
    - Consider upgrading to paid plans for production use

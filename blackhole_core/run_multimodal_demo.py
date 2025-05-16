@@ -20,7 +20,7 @@ base_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "data",
 def test_pdf_reader():
     try:
         print("\n📄 PDF Text Extraction Test")
-        pdf_path = os.path.join(base_dir, "sample.pdf")
+        pdf_path = os.path.join(base_dir, "mathbook.pdf")
         print(f"Reading PDF from: {pdf_path}")
 
         if not os.path.exists(pdf_path):

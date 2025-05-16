@@ -1,6 +1,6 @@
-# 🚀 Blackhole Core MCP
+# 🚀 Blackhole Core MCP (FastAPI Version)
 
-A modular AI-powered framework for ingesting multimodal data (images, PDFs, text), processing them via agents and pipelines, and storing structured insights into MongoDB.
+A modular AI-powered framework for ingesting multimodal data (images, PDFs, text), processing them via agents and pipelines, and storing structured insights into MongoDB. This version uses FastAPI for the backend API.
 
 ## 📖 Table of Contents
 
@@ -21,12 +21,15 @@ Blackhole Core MCP is a framework designed to process various types of data (tex
 
 ## Features
 
+- **FastAPI Backend**: Modern, high-performance API with automatic OpenAPI documentation
 - **Multimodal Data Processing**: Extract text from images and PDFs
 - **Agent-Based Architecture**: Process data using specialized agents
 - **MongoDB Integration**: Store and retrieve structured data
 - **Modular Design**: Easily extend with new agents and data sources
 - **Robust Error Handling**: Graceful fallbacks and detailed logging
 - **Comprehensive Testing**: Unit tests for core components
+- **Swagger UI**: Interactive API documentation at /docs
+- **ReDoc**: Alternative API documentation at /redoc
 
 ## Project Structure
 
@@ -142,14 +145,16 @@ python data/pipelines/combined_demo_pipeline.py
 # Test MongoDB connection
 python blackhole_core/data_source/mongodb.py
 
-# Start the web server
-python app.py
+# Start the FastAPI web server
+uvicorn main:app --host 0.0.0.0 --port 8000 --reload
 ```
 
-### Accessing the Web Interface
+### Accessing the Web Interface and API Documentation
 
-Once the server is running, you can access the web interface at:
-- http://localhost:8000
+Once the server is running, you can access:
+- Web interface: http://localhost:8000
+- API documentation (Swagger UI): http://localhost:8000/docs
+- Alternative API documentation (ReDoc): http://localhost:8000/redoc
 
 The interface provides the following functionality:
 - Upload and process images
@@ -157,6 +162,8 @@ The interface provides the following functionality:
 - Search the archive
 - Get weather data
 - View all results stored in MongoDB
+
+The API documentation provides interactive testing of all endpoints.
 
 ## Deployment to Production
 
@@ -193,41 +200,38 @@ The interface provides the following functionality:
    bash deploy.sh
    ```
 
-6. For production use, it's recommended to set up a reverse proxy (Nginx/Apache) and use Gunicorn:
+6. For production use, it's recommended to set up a reverse proxy (Nginx/Apache) and use Uvicorn with multiple workers:
    ```bash
-   gunicorn --bind 0.0.0.0:8000 app:app
+   uvicorn main:app --host 0.0.0.0 --port 8000 --workers 4
    ```
 
-### Frontend Deployment (Netlify)
+### Netlify Deployment (Frontend + Backend)
 
-To deploy the frontend to Netlify:
+This project is configured for easy deployment to Netlify with both frontend and backend:
 
 1. Push your code to a Git repository (GitHub, GitLab, or Bitbucket).
 
 2. Log in to Netlify and click "New site from Git".
 
 3. Select your repository and configure the deployment settings:
-   - Build command: (leave blank)
+   - Build command: `node update_env.js && pip install -r requirements.txt -t netlify/functions/api/lib`
    - Publish directory: `public`
 
 4. Click "Deploy site".
 
 5. After deployment, go to Site settings > Build & deploy > Environment variables and add:
-   - `API_BASE_URL`: Your backend API URL (e.g., https://your-backend-server.com)
+   - `MONGO_URI`: Your MongoDB connection string
+   - `CORS_ORIGINS`: `*` (or your specific origins)
 
 6. Trigger a new deployment for the environment variables to take effect.
 
-7. Your frontend should now be accessible at the Netlify URL (e.g., https://your-site-name.netlify.app).
+7. Your application should now be accessible at the Netlify URL (e.g., https://your-site-name.netlify.app).
 
 8. If you encounter a "Page not found" error, check that:
    - The `netlify.toml` file is in the root directory
-   - The `_redirects` file is in the `public` directory
    - The publish directory is set to `public`
 
-9. Update the API_BASE_URL in the frontend code to point to your deployed backend:
-   ```javascript
-   const API_BASE_URL = 'https://your-backend-server.com';
-   ```
+9. The backend API will be available at `/.netlify/functions/api` and the frontend is automatically configured to use this URL in production.
 
 ## Modules
 

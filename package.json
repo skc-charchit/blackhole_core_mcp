@@ -1,0 +1,15 @@
+{
+  "name": "blackhole-core-mcp",
+  "version": "1.0.0",
+  "description": "Blackhole Core MCP - A modular AI-powered framework for processing multimodal data",
+  "main": "update_env.js",
+  "scripts": {
+    "start": "uvicorn main:app --host 0.0.0.0 --port 8000 --reload",
+    "build": "node update_env.js"
+  },
+  "dependencies": {
+    "node-fetch": "^2.6.7"
+  },
+  "author": "",
+  "license": "ISC"
+}

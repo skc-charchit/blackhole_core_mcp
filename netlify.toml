@@ -1,6 +1,6 @@
 [build]
   publish = "public"
-  command = "node update_env.js"
+  command = "npm install && node update_env.js"
 
 [[redirects]]
   from = "/api/*"
@@ -22,3 +22,6 @@
 
 [dev]
   framework = "#static"
+
+[[plugins]]
+  package = "@netlify/plugin-functions-install-core"

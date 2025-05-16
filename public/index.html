@@ -53,6 +53,9 @@
                 <div id="testConnectionResult" class="mt-2"></div>
                 <div class="mt-2">
                     <a href="cors-test.html" class="btn btn-outline-secondary" target="_blank">CORS Test Page</a>
+                    <a href="cors-headers-test.html" class="btn btn-outline-secondary" target="_blank">CORS Headers Test</a>
+                    <a href="direct-test.html" class="btn btn-outline-secondary" target="_blank">Direct Connection Test</a>
+                    <a href="proxy-test.html" class="btn btn-outline-secondary" target="_blank">Proxy Test</a>
                 </div>
             </div>
         </div>
@@ -214,12 +217,18 @@
         // API base URL - loaded from env.js
         // The env.js file should set window.API_BASE_URL to your backend URL
         // For local development, we'll use an empty string (same origin)
-        // For production, we'll use the value from env.js
+        // For production, we'll use the Netlify proxy
         const API_BASE_URL = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
             ? '' // Empty string means same origin on localhost
-            : (window.API_BASE_URL || 'https://blackhole-core-api.onrender.com'); // Use the value from env.js or fallback to Render URL
+            : ''; // Empty string means same origin on Netlify (using the proxy)
+
+        // For debugging, also store the original Render backend URL
+        const RENDER_BACKEND_URL = window.RENDER_BACKEND_URL || 'https://blackhole-core-api.onrender.com';
 
         console.log('Using API_BASE_URL:', API_BASE_URL);
+        console.log('RENDER_BACKEND_URL:', RENDER_BACKEND_URL);
+        console.log('Hostname:', window.location.hostname);
+        console.log('Origin:', window.location.origin);
 
         // Check if the backend is available
         let backendAvailable = false;

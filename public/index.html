@@ -213,21 +213,22 @@
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
-    <script src="env.js"></script>
     <script>
-        // API base URL - loaded from env.js
-        // The env.js file should set window.API_BASE_URL to your backend URL
-        // For local development, we'll use an empty string (same origin)
-        // For production, we'll use the Netlify proxy
-        const API_BASE_URL = ''; // Always use same origin (empty string) to avoid CORS issues
+        // Define API_BASE_URL directly in the HTML
+        // Always use same origin (empty string) to avoid CORS issues
+        window.API_BASE_URL = '';
 
         // For debugging, also store the original Render backend URL
-        const RENDER_BACKEND_URL = window.RENDER_BACKEND_URL || 'https://blackhole-core-api.onrender.com';
+        window.RENDER_BACKEND_URL = 'https://blackhole-core-api.onrender.com';
 
-        console.log('Using API_BASE_URL:', API_BASE_URL);
-        console.log('RENDER_BACKEND_URL:', RENDER_BACKEND_URL);
+        // Log the configuration
+        console.log('API_BASE_URL set to:', window.API_BASE_URL);
+        console.log('RENDER_BACKEND_URL set to:', window.RENDER_BACKEND_URL);
         console.log('Hostname:', window.location.hostname);
         console.log('Origin:', window.location.origin);
+
+        // API base URL for use in the script
+        const API_BASE_URL = window.API_BASE_URL;
 
         // Check if the backend is available
         let backendAvailable = false;
@@ -267,10 +268,9 @@
 
             showLoading();
             try {
-                const response = await fetch(`${API_BASE_URL}/api/process-image`, {
+                const response = await fetch('/.netlify/functions/proxy/api/process-image', {
                     method: 'POST',
-                    body: formData,
-                    mode: 'cors'
+                    body: formData
                 });
                 const data = await response.json();
 
@@ -308,10 +308,9 @@
 
             showLoading();
             try {
-                const response = await fetch(`${API_BASE_URL}/api/process-pdf`, {
+                const response = await fetch('/.netlify/functions/proxy/api/process-pdf', {
                     method: 'POST',
-                    body: formData,
-                    mode: 'cors'
+                    body: formData
                 });
                 const data = await response.json();
 
@@ -346,14 +345,13 @@
 
             showLoading();
             try {
-                const response = await fetch(`${API_BASE_URL}/api/search`, {
+                const response = await fetch('/.netlify/functions/proxy/api/search', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
                         'Accept': 'application/json'
                     },
-                    body: JSON.stringify({ query }),
-                    mode: 'cors'
+                    body: JSON.stringify({ query })
                 });
                 const data = await response.json();
 
@@ -387,12 +385,11 @@
 
             showLoading();
             try {
-                const response = await fetch(`${API_BASE_URL}/api/weather?location=${encodeURIComponent(location)}`, {
+                const response = await fetch(`/.netlify/functions/proxy/api/weather?location=${encodeURIComponent(location)}`, {
                     method: 'GET',
                     headers: {
                         'Accept': 'application/json'
-                    },
-                    mode: 'cors'
+                    }
                 });
                 const data = await response.json();
 
@@ -493,13 +490,13 @@
             const resultDiv = document.getElementById('testConnectionResult');
             resultDiv.innerHTML = '<div class="alert alert-info">Testing connection to backend...</div>';
 
+            // First try the Netlify function directly
             try {
-                const response = await fetch(`${API_BASE_URL}/api/health`, {
+                const response = await fetch('/.netlify/functions/test', {
                     method: 'GET',
                     headers: {
                         'Accept': 'application/json'
-                    },
-                    mode: 'cors'
+                    }
                 });
 
                 const responseHeaders = {};
@@ -507,18 +504,25 @@
                     responseHeaders[name] = value;
                 });
 
-                const data = await response.json();
+                const responseText = await response.text();
+                let data;
+
+                try {
+                    data = JSON.parse(responseText);
+                } catch (e) {
+                    throw new Error(`Invalid JSON response: ${responseText.substring(0, 100)}...`);
+                }
 
                 if (response.ok) {
                     resultDiv.innerHTML = `
                         <div class="alert alert-success">
-                            <h5>✅ Connection successful!</h5>
+                            <h5>✅ Netlify Function Test Successful!</h5>
                             <p>Status: ${response.status}</p>
-                            <p>MongoDB: ${data.mongodb}</p>
-                            <p>API_BASE_URL: ${API_BASE_URL}</p>
+                            <p>Message: ${data.message}</p>
+                            <p>Timestamp: ${data.timestamp}</p>
                             <h6>Debug Information:</h6>
                             <pre class="bg-light p-2 mt-2" style="font-size: 0.8rem;">
-window.API_BASE_URL: ${window.API_BASE_URL}
+window.API_BASE_URL: ${window.API_BASE_URL || 'not set'}
 
 API_BASE_URL variable: ${API_BASE_URL}
 
@@ -532,17 +536,82 @@ Response Data: ${JSON.stringify(data, null, 2)}
                             </pre>
                         </div>
                     `;
-                    backendAvailable = true;
+
+                    // Now try the proxy function
+                    resultDiv.innerHTML += '<div class="alert alert-info mt-3">Testing connection to backend via proxy...</div>';
+
+                    try {
+                        const proxyResponse = await fetch('/.netlify/functions/proxy/api/health', {
+                            method: 'GET',
+                            headers: {
+                                'Accept': 'application/json'
+                            }
+                        });
+
+                        const proxyResponseHeaders = {};
+                        proxyResponse.headers.forEach((value, name) => {
+                            proxyResponseHeaders[name] = value;
+                        });
+
+                        const proxyResponseText = await proxyResponse.text();
+                        let proxyData;
+
+                        try {
+                            proxyData = JSON.parse(proxyResponseText);
+                        } catch (e) {
+                            throw new Error(`Invalid JSON response from proxy: ${proxyResponseText.substring(0, 100)}...`);
+                        }
+
+                        if (proxyResponse.ok) {
+                            resultDiv.innerHTML += `
+                                <div class="alert alert-success mt-3">
+                                    <h5>✅ Proxy Function Test Successful!</h5>
+                                    <p>Status: ${proxyResponse.status}</p>
+                                    <p>MongoDB: ${proxyData.mongodb}</p>
+                                    <h6>Debug Information:</h6>
+                                    <pre class="bg-light p-2 mt-2" style="font-size: 0.8rem;">
+Response Headers: ${JSON.stringify(proxyResponseHeaders, null, 2)}
+
+Response Data: ${JSON.stringify(proxyData, null, 2)}
+                                    </pre>
+                                </div>
+                            `;
+                            backendAvailable = true;
+                        } else {
+                            resultDiv.innerHTML += `
+                                <div class="alert alert-warning mt-3">
+                                    <h5>⚠️ Proxy Function Warning</h5>
+                                    <p>Status: ${proxyResponse.status}</p>
+                                    <h6>Debug Information:</h6>
+                                    <pre class="bg-light p-2 mt-2" style="font-size: 0.8rem;">
+Response Headers: ${JSON.stringify(proxyResponseHeaders, null, 2)}
+
+Response Data: ${JSON.stringify(proxyData, null, 2)}
+                                    </pre>
+                                </div>
+                            `;
+                            backendAvailable = false;
+                        }
+                    } catch (proxyError) {
+                        resultDiv.innerHTML += `
+                            <div class="alert alert-danger mt-3">
+                                <h5>❌ Proxy Function Failed: ${proxyError.message}</h5>
+                                <h6>Debug Information:</h6>
+                                <pre class="bg-light p-2 mt-2" style="font-size: 0.8rem;">
+Error details: ${proxyError}
+                                </pre>
+                            </div>
+                        `;
+                        backendAvailable = false;
+                    }
                 } else {
                     resultDiv.innerHTML = `
                         <div class="alert alert-warning">
-                            <h5>⚠️ Connection warning</h5>
+                            <h5>⚠️ Netlify Function Warning</h5>
                             <p>Status: ${response.status}</p>
-                            <p>MongoDB: ${data.mongodb}</p>
-                            <p>API_BASE_URL: ${API_BASE_URL}</p>
                             <h6>Debug Information:</h6>
                             <pre class="bg-light p-2 mt-2" style="font-size: 0.8rem;">
-window.API_BASE_URL: ${window.API_BASE_URL}
+window.API_BASE_URL: ${window.API_BASE_URL || 'not set'}
 
 API_BASE_URL variable: ${API_BASE_URL}
 
@@ -556,7 +625,7 @@ Response Data: ${JSON.stringify(data, null, 2)}
                             </pre>
                         </div>
                     `;
-                    backendAvailable = data.mongodb === 'connected';
+                    backendAvailable = false;
                 }
             } catch (error) {
                 resultDiv.innerHTML = `
@@ -564,7 +633,7 @@ Response Data: ${JSON.stringify(data, null, 2)}
                         <h5>❌ Connection failed: ${error.message}</h5>
                         <h6>Debug Information:</h6>
                         <pre class="bg-light p-2 mt-2" style="font-size: 0.8rem;">
-window.API_BASE_URL: ${window.API_BASE_URL}
+window.API_BASE_URL: ${window.API_BASE_URL || 'not set'}
 
 API_BASE_URL variable: ${API_BASE_URL}
 
@@ -603,15 +672,41 @@ Error details: ${error}
         // Initial health check
         async function checkHealth() {
             try {
-                const response = await fetch(`${API_BASE_URL}/api/health`, {
+                // First check if the Netlify functions are working
+                try {
+                    const testResponse = await fetch('/.netlify/functions/test', {
+                        method: 'GET',
+                        headers: {
+                            'Accept': 'application/json'
+                        }
+                    });
+
+                    if (testResponse.ok) {
+                        console.log('Netlify functions are working.');
+                    } else {
+                        console.warn('Netlify functions may not be working properly.');
+                    }
+                } catch (testError) {
+                    console.error('Error testing Netlify functions:', testError);
+                }
+
+                // Now check the backend via the proxy
+                const response = await fetch('/.netlify/functions/proxy/api/health', {
                     method: 'GET',
                     headers: {
                         'Accept': 'application/json'
-                    },
-                    mode: 'cors'
+                    }
                 });
 
-                const data = await response.json();
+                const responseText = await response.text();
+                let data;
+
+                try {
+                    data = JSON.parse(responseText);
+                } catch (e) {
+                    console.error('Invalid JSON response:', responseText);
+                    throw new Error(`Invalid JSON response: ${responseText.substring(0, 100)}...`);
+                }
 
                 if (!response.ok || data.mongodb !== 'connected') {
                     console.warn('Warning: Backend services may not be fully operational.');
@@ -640,12 +735,11 @@ Error details: ${error}
             resultsList.innerHTML = '<p>Loading results...</p>';
 
             try {
-                const response = await fetch(`${API_BASE_URL}/api/results`, {
+                const response = await fetch('/.netlify/functions/proxy/api/results', {
                     method: 'GET',
                     headers: {
                         'Accept': 'application/json'
-                    },
-                    mode: 'cors'
+                    }
                 });
                 const data = await response.json();
 

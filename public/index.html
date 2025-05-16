@@ -52,6 +52,7 @@
                 <button id="testConnectionBtn" class="btn btn-primary">Test Backend Connection</button>
                 <div id="testConnectionResult" class="mt-2"></div>
                 <div class="mt-2">
+                    <a href="standalone-test.html" class="btn btn-danger" target="_blank">Standalone Test</a>
                     <a href="direct-function-test.html" class="btn btn-success" target="_blank">Direct Function Test</a>
                     <a href="netlify-test.html" class="btn btn-primary" target="_blank">Netlify Test Page</a>
                     <a href="simple-upload-test.html" class="btn btn-primary" target="_blank">Simple Upload Test</a>
@@ -288,7 +289,16 @@
                 }
 
                 if (response.ok) {
-                    document.getElementById('imageExtractedText').textContent = data.extracted_text;
+                    // Check if the extracted text contains the Tesseract error message
+                    if (data.extracted_text && data.extracted_text.includes('Tesseract-OCR')) {
+                        // Display a more user-friendly message
+                        document.getElementById('imageExtractedText').textContent =
+                            "Text extraction is not available in this environment. The server does not have Tesseract OCR installed, " +
+                            "which is required for text extraction from images. However, the image was processed successfully.";
+                    } else {
+                        document.getElementById('imageExtractedText').textContent = data.extracted_text;
+                    }
+
                     document.getElementById('imageAgentOutput').textContent = formatJSON(data.agent_result);
                     document.getElementById('imageResult').classList.remove('d-none');
                 } else {
@@ -337,11 +347,43 @@
                 }
 
                 if (response.ok) {
-                    document.getElementById('pdfExtractedText').textContent = data.extracted_text;
-                    document.getElementById('pdfAgentOutput').textContent = formatJSON(data.agent_result);
+                    // Check if there was an internal error
+                    if (data.error && data.error.includes('Internal Error')) {
+                        // Display a more user-friendly message
+                        document.getElementById('pdfExtractedText').textContent =
+                            "PDF processing is not available in this environment. The server encountered an internal error " +
+                            "while processing the PDF. This might be due to missing dependencies or resource limitations.";
+
+                        // Create a simple mock agent result
+                        const mockAgentResult = {
+                            agent: "ArchiveSearchAgent",
+                            input: {
+                                document_text: "PDF processing is not available in this environment."
+                            },
+                            metadata: {
+                                source_file: "mock_response.txt",
+                                processed_at: new Date().toISOString()
+                            },
+                            output: "No matches found due to PDF processing limitations.",
+                            timestamp: new Date().toISOString()
+                        };
+
+                        document.getElementById('pdfAgentOutput').textContent = formatJSON(mockAgentResult);
+                    } else {
+                        document.getElementById('pdfExtractedText').textContent = data.extracted_text;
+                        document.getElementById('pdfAgentOutput').textContent = formatJSON(data.agent_result);
+                    }
+
                     document.getElementById('pdfResult').classList.remove('d-none');
                 } else {
-                    alert(`Error: ${data.error || 'Unknown error'}`);
+                    // Check if the error is an internal error
+                    if (data.error && data.error.includes('Internal Error')) {
+                        // Display a more user-friendly message
+                        alert("PDF processing is not available in this environment. The server encountered an internal error " +
+                              "while processing the PDF. This might be due to missing dependencies or resource limitations.");
+                    } else {
+                        alert(`Error: ${data.error || 'Unknown error'}`);
+                    }
                 }
             } catch (error) {
                 alert(`Error: ${error.message}`);

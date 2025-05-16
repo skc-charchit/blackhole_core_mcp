@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Standalone Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        pre {
+            background-color: #f5f5f5;
+            padding: 10px;
+            border-radius: 5px;
+            overflow-x: auto;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+        button {
+            padding: 10px 15px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 10px 0;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        .error {
+            color: red;
+        }
+        .success {
+            color: green;
+        }
+        .card {
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            padding: 15px;
+            margin-bottom: 15px;
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+        }
+        .form-group input {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid rgba(0,0,0,0.3);
+            border-radius: 50%;
+            border-top-color: #4CAF50;
+            animation: spin 1s ease-in-out infinite;
+            margin-left: 10px;
+        }
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <h1>Standalone Test</h1>
+    <p>This page provides a simple test for image and PDF processing without any dependencies.</p>
+
+    <div class="card">
+        <h2>Mock Image Processing</h2>
+        <p>This test doesn't actually upload an image - it just returns a mock response.</p>
+        <button id="mockImageBtn">Test Mock Image Processing</button>
+        <div id="mockImageResult"></div>
+    </div>
+
+    <div class="card">
+        <h2>Mock PDF Processing</h2>
+        <p>This test doesn't actually upload a PDF - it just returns a mock response.</p>
+        <button id="mockPdfBtn">Test Mock PDF Processing</button>
+        <div id="mockPdfResult"></div>
+    </div>
+
+    <div class="card">
+        <h2>Simple Image Upload</h2>
+        <p>This test uploads a small image and displays the raw response.</p>
+        <form id="imageForm">
+            <div class="form-group">
+                <label for="imageFile">Select a small image file:</label>
+                <input type="file" id="imageFile" name="file" accept="image/*" required>
+            </div>
+            <button type="submit">Upload Image</button>
+        </form>
+        <div id="imageResult"></div>
+    </div>
+
+    <script>
+        // Helper function to show loading indicator
+        function showLoading(elementId) {
+            const element = document.getElementById(elementId);
+            element.innerHTML = '<div class="loading"></div> Processing...';
+        }
+
+        // Helper function to display response
+        function displayResponse(elementId, response, isError = false) {
+            const element = document.getElementById(elementId);
+            let html = '';
+
+            if (isError) {
+                html = `<div class="error"><h3>❌ Error</h3><pre>${response}</pre></div>`;
+            } else {
+                html = `<div class="success"><h3>✅ Success</h3><pre>${response}</pre></div>`;
+            }
+
+            element.innerHTML = html;
+        }
+
+        // Mock image processing
+        document.getElementById('mockImageBtn').addEventListener('click', async function() {
+            showLoading('mockImageResult');
+
+            try {
+                // Call the mock image API endpoint
+                const response = await fetch('/api/mock-image', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json'
+                    },
+                    body: JSON.stringify({ mock: true })
+                });
+
+                // Get the response text
+                const responseText = await response.text();
+
+                // Try to parse as JSON
+                try {
+                    const data = JSON.parse(responseText);
+                    displayResponse('mockImageResult', JSON.stringify(data, null, 2));
+                } catch (parseError) {
+                    console.error('Error parsing JSON:', parseError);
+                    displayResponse('mockImageResult', `Failed to parse response as JSON:\n\n${responseText}`, true);
+                }
+            } catch (error) {
+                console.error('Error calling mock image API:', error);
+                displayResponse('mockImageResult', `Error: ${error.message}`, true);
+            }
+        });
+
+        // Mock PDF processing
+        document.getElementById('mockPdfBtn').addEventListener('click', async function() {
+            showLoading('mockPdfResult');
+
+            try {
+                // Call the mock PDF API endpoint
+                const response = await fetch('/api/mock-pdf', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json'
+                    },
+                    body: JSON.stringify({ mock: true })
+                });
+
+                // Get the response text
+                const responseText = await response.text();
+
+                // Try to parse as JSON
+                try {
+                    const data = JSON.parse(responseText);
+                    displayResponse('mockPdfResult', JSON.stringify(data, null, 2));
+                } catch (parseError) {
+                    console.error('Error parsing JSON:', parseError);
+                    displayResponse('mockPdfResult', `Failed to parse response as JSON:\n\n${responseText}`, true);
+                }
+            } catch (error) {
+                console.error('Error calling mock PDF API:', error);
+                displayResponse('mockPdfResult', `Error: ${error.message}`, true);
+            }
+        });
+
+        // Simple image upload
+        document.getElementById('imageForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+
+            const fileInput = document.getElementById('imageFile');
+            if (!fileInput.files.length) {
+                alert('Please select an image file');
+                return;
+            }
+
+            showLoading('imageResult');
+
+            try {
+                // Create a simple FormData object with just the file
+                const formData = new FormData();
+                formData.append('file', fileInput.files[0]);
+
+                // Log the file details
+                console.log('File:', fileInput.files[0].name);
+                console.log('Size:', fileInput.files[0].size, 'bytes');
+                console.log('Type:', fileInput.files[0].type);
+
+                // Make a simple fetch request to the mock endpoint
+                const response = await fetch('/api/mock-image', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                // Get the raw response text
+                const responseText = await response.text();
+                console.log('Response status:', response.status);
+                console.log('Response text length:', responseText.length);
+
+                // Try to parse as JSON, but don't fail if it's not valid JSON
+                try {
+                    const data = JSON.parse(responseText);
+                    displayResponse('imageResult', JSON.stringify(data, null, 2));
+                } catch (parseError) {
+                    console.error('Error parsing JSON:', parseError);
+                    // Display the raw response text (truncated if it's too long)
+                    const truncatedResponse = responseText.length > 1000
+                        ? responseText.substring(0, 1000) + '... (truncated)'
+                        : responseText;
+                    displayResponse('imageResult', `Failed to parse response as JSON:\n\n${truncatedResponse}`, true);
+                }
+            } catch (error) {
+                console.error('Error uploading image:', error);
+                displayResponse('imageResult', `Error: ${error.message}`, true);
+            }
+        });
+    </script>
+</body>
+</html>

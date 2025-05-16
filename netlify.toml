@@ -3,6 +3,16 @@
   command = "npm install && node update_env.js"
 
 [[redirects]]
+  from = "/api/mock-image"
+  to = "/.netlify/functions/mock-image"
+  status = 200
+
+[[redirects]]
+  from = "/api/mock-pdf"
+  to = "/.netlify/functions/mock-pdf"
+  status = 200
+
+[[redirects]]
   from = "/api/process-image"
   to = "/.netlify/functions/process-image"
   status = 200

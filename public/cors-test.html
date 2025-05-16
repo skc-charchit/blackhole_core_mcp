@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CORS Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        pre {
+            background-color: #f5f5f5;
+            padding: 10px;
+            border-radius: 5px;
+            overflow-x: auto;
+        }
+        button {
+            padding: 10px 15px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 10px 0;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        .error {
+            color: red;
+        }
+        .success {
+            color: green;
+        }
+    </style>
+</head>
+<body>
+    <h1>CORS Test for Render Backend</h1>
+    <p>This page tests the connection to the Render backend API.</p>
+    
+    <div>
+        <h2>Test Endpoints</h2>
+        <button onclick="testEndpoint('/api/health')">Test /api/health</button>
+        <button onclick="testEndpoint('/api/test')">Test /api/test</button>
+        <button onclick="testEndpoint('/')">Test Root Endpoint</button>
+        <button onclick="testEndpoint('/api/weather?location=London')">Test Weather API</button>
+    </div>
+    
+    <div>
+        <h2>Results</h2>
+        <div id="results"></div>
+    </div>
+    
+    <script>
+        const API_BASE_URL = 'https://blackhole-core-api.onrender.com';
+        
+        async function testEndpoint(endpoint) {
+            const resultsDiv = document.getElementById('results');
+            resultsDiv.innerHTML = `<p>Testing ${API_BASE_URL}${endpoint}...</p>`;
+            
+            try {
+                const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+                    method: 'GET',
+                    headers: {
+                        'Accept': 'application/json',
+                        'Content-Type': 'application/json'
+                    },
+                    mode: 'cors'
+                });
+                
+                const responseHeaders = {};
+                response.headers.forEach((value, name) => {
+                    responseHeaders[name] = value;
+                });
+                
+                const data = await response.json();
+                
+                resultsDiv.innerHTML = `
+                    <p class="success">✅ Success! Status: ${response.status}</p>
+                    <h3>Response Headers:</h3>
+                    <pre>${JSON.stringify(responseHeaders, null, 2)}</pre>
+                    <h3>Response Data:</h3>
+                    <pre>${JSON.stringify(data, null, 2)}</pre>
+                `;
+            } catch (error) {
+                resultsDiv.innerHTML = `
+                    <p class="error">❌ Error: ${error.message}</p>
+                    <h3>Debug Information:</h3>
+                    <pre>
+API_BASE_URL: ${API_BASE_URL}
+Endpoint: ${endpoint}
+Full URL: ${API_BASE_URL}${endpoint}
+Error: ${error}
+Error Stack: ${error.stack}
+                    </pre>
+                `;
+            }
+        }
+    </script>
+</body>
+</html>

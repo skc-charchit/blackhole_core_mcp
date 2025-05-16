@@ -68,31 +68,18 @@ app = FastAPI(
     version="2.0"
 )
 
-# Configure CORS
-cors_origins = os.getenv('CORS_ORIGINS', '*')
-if cors_origins == '*':
-    # Allow all origins
-    app.add_middleware(
-        CORSMiddleware,
-        allow_origins=["*"],
-        allow_credentials=True,
-        allow_methods=["*"],
-        allow_headers=["*"],
-    )
-else:
-    # Allow specific origins
-    origins = cors_origins.split(',')
-    # Always include the Netlify domain
-    if 'blackholebody.netlify.app' not in origins:
-        origins.append('https://blackholebody.netlify.app')
-    logger.info(f"CORS origins: {origins}")
-    app.add_middleware(
-        CORSMiddleware,
-        allow_origins=origins,
-        allow_credentials=True,
-        allow_methods=["*"],
-        allow_headers=["*"],
-    )
+# Configure CORS - Ensure it's properly set up for cross-origin requests
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # Allow all origins for now to debug
+    allow_credentials=False,  # Set to False for public APIs
+    allow_methods=["*"],  # Allow all methods
+    allow_headers=["*"],  # Allow all headers
+    expose_headers=["*"],  # Expose all headers
+)
+
+# Log CORS configuration
+logger.info("CORS configured to allow all origins")
 
 # Configure upload folder
 UPLOAD_FOLDER = os.getenv('UPLOAD_DIR', 'uploads')

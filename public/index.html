@@ -51,6 +51,9 @@
             <div class="mt-3">
                 <button id="testConnectionBtn" class="btn btn-primary">Test Backend Connection</button>
                 <div id="testConnectionResult" class="mt-2"></div>
+                <div class="mt-2">
+                    <a href="cors-test.html" class="btn btn-outline-secondary" target="_blank">CORS Test Page</a>
+                </div>
             </div>
         </div>
 
@@ -258,7 +261,8 @@
             try {
                 const response = await fetch(`${API_BASE_URL}/api/process-image`, {
                     method: 'POST',
-                    body: formData
+                    body: formData,
+                    mode: 'cors'
                 });
                 const data = await response.json();
 
@@ -298,7 +302,8 @@
             try {
                 const response = await fetch(`${API_BASE_URL}/api/process-pdf`, {
                     method: 'POST',
-                    body: formData
+                    body: formData,
+                    mode: 'cors'
                 });
                 const data = await response.json();
 
@@ -336,9 +341,11 @@
                 const response = await fetch(`${API_BASE_URL}/api/search`, {
                     method: 'POST',
                     headers: {
-                        'Content-Type': 'application/json'
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json'
                     },
-                    body: JSON.stringify({ query })
+                    body: JSON.stringify({ query }),
+                    mode: 'cors'
                 });
                 const data = await response.json();
 
@@ -372,7 +379,13 @@
 
             showLoading();
             try {
-                const response = await fetch(`${API_BASE_URL}/api/weather?location=${encodeURIComponent(location)}`);
+                const response = await fetch(`${API_BASE_URL}/api/weather?location=${encodeURIComponent(location)}`, {
+                    method: 'GET',
+                    headers: {
+                        'Accept': 'application/json'
+                    },
+                    mode: 'cors'
+                });
                 const data = await response.json();
 
                 if (response.ok) {
@@ -467,23 +480,95 @@
         // Load results when tab is shown
         document.getElementById('results-tab').addEventListener('click', loadResults);
 
-        // Initial health check
-        async function checkHealth() {
+        // Test connection button
+        document.getElementById('testConnectionBtn').addEventListener('click', async function() {
+            const resultDiv = document.getElementById('testConnectionResult');
+            resultDiv.innerHTML = '<div class="alert alert-info">Testing connection to backend...</div>';
+
             try {
-                const response = await fetch(`${API_BASE_URL}/api/health`);
+                const response = await fetch(`${API_BASE_URL}/api/health`, {
+                    method: 'GET',
+                    headers: {
+                        'Accept': 'application/json'
+                    },
+                    mode: 'cors'
+                });
+
+                const responseHeaders = {};
+                response.headers.forEach((value, name) => {
+                    responseHeaders[name] = value;
+                });
+
                 const data = await response.json();
 
-                if (!response.ok || data.mongodb !== 'connected') {
-                    console.warn('Warning: Backend services may not be fully operational.');
-                    document.getElementById('resultsList').innerHTML = '<div class="alert alert-warning">Backend services may not be fully operational. MongoDB connection issue detected.</div>';
-                    backendAvailable = false;
-                } else {
-                    console.log('Backend services are operational.');
+                if (response.ok) {
+                    resultDiv.innerHTML = `
+                        <div class="alert alert-success">
+                            <h5>✅ Connection successful!</h5>
+                            <p>Status: ${response.status}</p>
+                            <p>MongoDB: ${data.mongodb}</p>
+                            <p>API_BASE_URL: ${API_BASE_URL}</p>
+                            <h6>Debug Information:</h6>
+                            <pre class="bg-light p-2 mt-2" style="font-size: 0.8rem;">
+window.API_BASE_URL: ${window.API_BASE_URL}
+
+API_BASE_URL variable: ${API_BASE_URL}
+
+window.location.hostname: ${window.location.hostname}
+
+window.location.origin: ${window.location.origin}
+
+Response Headers: ${JSON.stringify(responseHeaders, null, 2)}
+
+Response Data: ${JSON.stringify(data, null, 2)}
+                            </pre>
+                        </div>
+                    `;
                     backendAvailable = true;
+                } else {
+                    resultDiv.innerHTML = `
+                        <div class="alert alert-warning">
+                            <h5>⚠️ Connection warning</h5>
+                            <p>Status: ${response.status}</p>
+                            <p>MongoDB: ${data.mongodb}</p>
+                            <p>API_BASE_URL: ${API_BASE_URL}</p>
+                            <h6>Debug Information:</h6>
+                            <pre class="bg-light p-2 mt-2" style="font-size: 0.8rem;">
+window.API_BASE_URL: ${window.API_BASE_URL}
+
+API_BASE_URL variable: ${API_BASE_URL}
+
+window.location.hostname: ${window.location.hostname}
+
+window.location.origin: ${window.location.origin}
+
+Response Headers: ${JSON.stringify(responseHeaders, null, 2)}
+
+Response Data: ${JSON.stringify(data, null, 2)}
+                            </pre>
+                        </div>
+                    `;
+                    backendAvailable = data.mongodb === 'connected';
                 }
             } catch (error) {
-                console.error('Error connecting to backend services:', error);
-                document.getElementById('resultsList').innerHTML = '<div class="alert alert-danger">Error connecting to backend services. The server may not be running or is not accessible.</div>';
+                resultDiv.innerHTML = `
+                    <div class="alert alert-danger">
+                        <h5>❌ Connection failed: ${error.message}</h5>
+                        <h6>Debug Information:</h6>
+                        <pre class="bg-light p-2 mt-2" style="font-size: 0.8rem;">
+window.API_BASE_URL: ${window.API_BASE_URL}
+
+API_BASE_URL variable: ${API_BASE_URL}
+
+window.location.hostname: ${window.location.hostname}
+
+window.location.origin: ${window.location.origin}
+
+Error details: ${error}
+                        </pre>
+                    </div>
+                `;
+                backendAvailable = false;
 
                 // Add a message to all tabs
                 const tabContents = document.querySelectorAll('.tab-pane');
@@ -504,7 +589,33 @@
                         tab.prepend(errorDiv);
                     }
                 });
+            }
+        });
 
+        // Initial health check
+        async function checkHealth() {
+            try {
+                const response = await fetch(`${API_BASE_URL}/api/health`, {
+                    method: 'GET',
+                    headers: {
+                        'Accept': 'application/json'
+                    },
+                    mode: 'cors'
+                });
+
+                const data = await response.json();
+
+                if (!response.ok || data.mongodb !== 'connected') {
+                    console.warn('Warning: Backend services may not be fully operational.');
+                    document.getElementById('resultsList').innerHTML = '<div class="alert alert-warning">Backend services may not be fully operational. MongoDB connection issue detected.</div>';
+                    backendAvailable = false;
+                } else {
+                    console.log('Backend services are operational.');
+                    backendAvailable = true;
+                }
+            } catch (error) {
+                console.error('Error connecting to backend services:', error);
+                document.getElementById('resultsList').innerHTML = '<div class="alert alert-danger">Error connecting to backend services. The server may not be running or is not accessible.</div>';
                 backendAvailable = false;
             }
         }
@@ -521,7 +632,13 @@
             resultsList.innerHTML = '<p>Loading results...</p>';
 
             try {
-                const response = await fetch(`${API_BASE_URL}/api/results`);
+                const response = await fetch(`${API_BASE_URL}/api/results`, {
+                    method: 'GET',
+                    headers: {
+                        'Accept': 'application/json'
+                    },
+                    mode: 'cors'
+                });
                 const data = await response.json();
 
                 if (response.ok && Array.isArray(data)) {

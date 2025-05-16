@@ -53,6 +53,7 @@
                 <div id="testConnectionResult" class="mt-2"></div>
                 <div class="mt-2">
                     <a href="netlify-test.html" class="btn btn-primary" target="_blank">Netlify Test Page</a>
+                    <a href="file-upload-test.html" class="btn btn-primary" target="_blank">File Upload Test</a>
                     <a href="function-test.html" class="btn btn-outline-secondary" target="_blank">Function Test</a>
                     <a href="proxy-test.html" class="btn btn-outline-secondary" target="_blank">Proxy Test</a>
                     <a href="cors-test.html" class="btn btn-outline-secondary" target="_blank">CORS Test Page</a>
@@ -273,7 +274,16 @@
                     method: 'POST',
                     body: formData
                 });
-                const data = await response.json();
+
+                const responseText = await response.text();
+                let data;
+
+                try {
+                    data = JSON.parse(responseText);
+                } catch (e) {
+                    console.error('Invalid JSON response:', responseText);
+                    throw new Error(`Invalid JSON response: ${responseText.substring(0, 100)}...`);
+                }
 
                 if (response.ok) {
                     document.getElementById('imageExtractedText').textContent = data.extracted_text;
@@ -313,7 +323,16 @@
                     method: 'POST',
                     body: formData
                 });
-                const data = await response.json();
+
+                const responseText = await response.text();
+                let data;
+
+                try {
+                    data = JSON.parse(responseText);
+                } catch (e) {
+                    console.error('Invalid JSON response:', responseText);
+                    throw new Error(`Invalid JSON response: ${responseText.substring(0, 100)}...`);
+                }
 
                 if (response.ok) {
                     document.getElementById('pdfExtractedText').textContent = data.extracted_text;

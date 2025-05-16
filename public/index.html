@@ -52,6 +52,7 @@
                 <button id="testConnectionBtn" class="btn btn-primary">Test Backend Connection</button>
                 <div id="testConnectionResult" class="mt-2"></div>
                 <div class="mt-2">
+                    <a href="clean-index.html" class="btn btn-danger" target="_blank">Clean Version</a>
                     <a href="standalone-test.html" class="btn btn-danger" target="_blank">Standalone Test</a>
                     <a href="direct-function-test.html" class="btn btn-success" target="_blank">Direct Function Test</a>
                     <a href="netlify-test.html" class="btn btn-primary" target="_blank">Netlify Test Page</a>
@@ -273,10 +274,20 @@
 
             showLoading();
             try {
-                const response = await fetch('/.netlify/functions/proxy/api/process-image', {
-                    method: 'POST',
-                    body: formData
-                });
+                // Try the mock endpoint first, and if that fails, fall back to the proxy
+                let response;
+                try {
+                    response = await fetch('/api/mock-image', {
+                        method: 'POST',
+                        body: formData
+                    });
+                } catch (mockError) {
+                    console.warn('Mock image endpoint failed, falling back to proxy:', mockError);
+                    response = await fetch('/.netlify/functions/proxy/api/process-image', {
+                        method: 'POST',
+                        body: formData
+                    });
+                }
 
                 const responseText = await response.text();
                 let data;
@@ -331,10 +342,20 @@
 
             showLoading();
             try {
-                const response = await fetch('/.netlify/functions/proxy/api/process-pdf', {
-                    method: 'POST',
-                    body: formData
-                });
+                // Try the mock endpoint first, and if that fails, fall back to the proxy
+                let response;
+                try {
+                    response = await fetch('/api/mock-pdf', {
+                        method: 'POST',
+                        body: formData
+                    });
+                } catch (mockError) {
+                    console.warn('Mock PDF endpoint failed, falling back to proxy:', mockError);
+                    response = await fetch('/.netlify/functions/proxy/api/process-pdf', {
+                        method: 'POST',
+                        body: formData
+                    });
+                }
 
                 const responseText = await response.text();
                 let data;

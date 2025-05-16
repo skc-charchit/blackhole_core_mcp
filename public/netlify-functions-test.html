@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Netlify Functions Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        pre {
+            background-color: #f5f5f5;
+            padding: 10px;
+            border-radius: 5px;
+            overflow-x: auto;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+        button {
+            padding: 10px 15px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 10px 0;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        .error {
+            color: red;
+        }
+        .success {
+            color: green;
+        }
+        .card {
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            padding: 15px;
+            margin-bottom: 15px;
+        }
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid rgba(0,0,0,0.3);
+            border-radius: 50%;
+            border-top-color: #4CAF50;
+            animation: spin 1s ease-in-out infinite;
+            margin-left: 10px;
+        }
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <h1>Netlify Functions Test</h1>
+    <p>This page tests all the Netlify functions directly to ensure they're working properly.</p>
+    
+    <div class="card">
+        <h2>Test Function</h2>
+        <p>Tests the basic Netlify function to ensure the serverless functions are working.</p>
+        <button id="testBtn">Test Function</button>
+        <div id="testResult"></div>
+    </div>
+    
+    <div class="card">
+        <h2>Mock Image Function</h2>
+        <p>Tests the mock image processing function.</p>
+        <button id="mockImageBtn">Test Mock Image</button>
+        <div id="mockImageResult"></div>
+    </div>
+    
+    <div class="card">
+        <h2>Mock PDF Function</h2>
+        <p>Tests the mock PDF processing function.</p>
+        <button id="mockPdfBtn">Test Mock PDF</button>
+        <div id="mockPdfResult"></div>
+    </div>
+    
+    <div class="card">
+        <h2>Proxy Function</h2>
+        <p>Tests the proxy function that forwards requests to the backend.</p>
+        <button id="proxyBtn">Test Proxy</button>
+        <div id="proxyResult"></div>
+    </div>
+    
+    <script>
+        // Helper function to show loading indicator
+        function showLoading(elementId) {
+            const element = document.getElementById(elementId);
+            element.innerHTML = '<div class="loading"></div> Processing...';
+        }
+        
+        // Helper function to display response
+        function displayResponse(elementId, response, isError = false) {
+            const element = document.getElementById(elementId);
+            let html = '';
+            
+            if (isError) {
+                html = `<div class="error"><h3>❌ Error</h3><pre>${response}</pre></div>`;
+            } else {
+                html = `<div class="success"><h3>✅ Success</h3><pre>${response}</pre></div>`;
+            }
+            
+            element.innerHTML = html;
+        }
+        
+        // Test function
+        document.getElementById('testBtn').addEventListener('click', async function() {
+            showLoading('testResult');
+            
+            try {
+                const response = await fetch('/.netlify/functions/test', {
+                    method: 'GET',
+                    headers: {
+                        'Accept': 'application/json'
+                    }
+                });
+                
+                const responseText = await response.text();
+                
+                try {
+                    const data = JSON.parse(responseText);
+                    displayResponse('testResult', JSON.stringify(data, null, 2));
+                } catch (parseError) {
+                    displayResponse('testResult', `Failed to parse response as JSON:\n\n${responseText}`, true);
+                }
+            } catch (error) {
+                displayResponse('testResult', `Error: ${error.message}`, true);
+            }
+        });
+        
+        // Mock image function
+        document.getElementById('mockImageBtn').addEventListener('click', async function() {
+            showLoading('mockImageResult');
+            
+            try {
+                const response = await fetch('/.netlify/functions/mock-image', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json'
+                    },
+                    body: JSON.stringify({ test: true })
+                });
+                
+                const responseText = await response.text();
+                
+                try {
+                    const data = JSON.parse(responseText);
+                    displayResponse('mockImageResult', JSON.stringify(data, null, 2));
+                } catch (parseError) {
+                    displayResponse('mockImageResult', `Failed to parse response as JSON:\n\n${responseText}`, true);
+                }
+            } catch (error) {
+                displayResponse('mockImageResult', `Error: ${error.message}`, true);
+            }
+        });
+        
+        // Mock PDF function
+        document.getElementById('mockPdfBtn').addEventListener('click', async function() {
+            showLoading('mockPdfResult');
+            
+            try {
+                const response = await fetch('/.netlify/functions/mock-pdf', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json'
+                    },
+                    body: JSON.stringify({ test: true })
+                });
+                
+                const responseText = await response.text();
+                
+                try {
+                    const data = JSON.parse(responseText);
+                    displayResponse('mockPdfResult', JSON.stringify(data, null, 2));
+                } catch (parseError) {
+                    displayResponse('mockPdfResult', `Failed to parse response as JSON:\n\n${responseText}`, true);
+                }
+            } catch (error) {
+                displayResponse('mockPdfResult', `Error: ${error.message}`, true);
+            }
+        });
+        
+        // Proxy function
+        document.getElementById('proxyBtn').addEventListener('click', async function() {
+            showLoading('proxyResult');
+            
+            try {
+                const response = await fetch('/.netlify/functions/proxy/api/health', {
+                    method: 'GET',
+                    headers: {
+                        'Accept': 'application/json'
+                    }
+                });
+                
+                const responseText = await response.text();
+                
+                try {
+                    const data = JSON.parse(responseText);
+                    displayResponse('proxyResult', JSON.stringify(data, null, 2));
+                } catch (parseError) {
+                    displayResponse('proxyResult', `Failed to parse response as JSON:\n\n${responseText}`, true);
+                }
+            } catch (error) {
+                displayResponse('proxyResult', `Error: ${error.message}`, true);
+            }
+        });
+    </script>
+</body>
+</html>

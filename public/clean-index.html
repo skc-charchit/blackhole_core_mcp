@@ -150,7 +150,7 @@
     <script>
         // API base URL - change this to your backend URL if needed
         const API_BASE_URL = '';
-        
+
         // Track backend availability
         let backendAvailable = false;
 
@@ -183,19 +183,33 @@
 
             showLoading();
             try {
-                // Try the mock endpoint first, and if that fails, fall back to the proxy
+                // Try the direct Netlify function first, then the mock endpoint, and finally fall back to the proxy
                 let response;
                 try {
-                    response = await fetch('/api/mock-image', {
+                    // First try the direct Netlify function
+                    response = await fetch('/.netlify/functions/mock-image', {
                         method: 'POST',
                         body: formData
                     });
-                } catch (mockError) {
-                    console.warn('Mock image endpoint failed, falling back to proxy:', mockError);
-                    response = await fetch('/.netlify/functions/proxy/api/process-image', {
-                        method: 'POST',
-                        body: formData
-                    });
+                    console.log('Using direct Netlify function for image processing');
+                } catch (directError) {
+                    console.warn('Direct Netlify function failed, trying mock endpoint:', directError);
+                    try {
+                        // Then try the mock endpoint via the redirect
+                        response = await fetch('/api/mock-image', {
+                            method: 'POST',
+                            body: formData
+                        });
+                        console.log('Using mock endpoint for image processing');
+                    } catch (mockError) {
+                        console.warn('Mock image endpoint failed, falling back to proxy:', mockError);
+                        // Finally fall back to the proxy
+                        response = await fetch('/.netlify/functions/proxy/api/process-image', {
+                            method: 'POST',
+                            body: formData
+                        });
+                        console.log('Using proxy for image processing');
+                    }
                 }
 
                 const responseText = await response.text();
@@ -246,19 +260,33 @@
 
             showLoading();
             try {
-                // Try the mock endpoint first, and if that fails, fall back to the proxy
+                // Try the direct Netlify function first, then the mock endpoint, and finally fall back to the proxy
                 let response;
                 try {
-                    response = await fetch('/api/mock-pdf', {
+                    // First try the direct Netlify function
+                    response = await fetch('/.netlify/functions/mock-pdf', {
                         method: 'POST',
                         body: formData
                     });
-                } catch (mockError) {
-                    console.warn('Mock PDF endpoint failed, falling back to proxy:', mockError);
-                    response = await fetch('/.netlify/functions/proxy/api/process-pdf', {
-                        method: 'POST',
-                        body: formData
-                    });
+                    console.log('Using direct Netlify function for PDF processing');
+                } catch (directError) {
+                    console.warn('Direct Netlify function failed, trying mock endpoint:', directError);
+                    try {
+                        // Then try the mock endpoint via the redirect
+                        response = await fetch('/api/mock-pdf', {
+                            method: 'POST',
+                            body: formData
+                        });
+                        console.log('Using mock endpoint for PDF processing');
+                    } catch (mockError) {
+                        console.warn('Mock PDF endpoint failed, falling back to proxy:', mockError);
+                        // Finally fall back to the proxy
+                        response = await fetch('/.netlify/functions/proxy/api/process-pdf', {
+                            method: 'POST',
+                            body: formData
+                        });
+                        console.log('Using proxy for PDF processing');
+                    }
                 }
 
                 const responseText = await response.text();
@@ -323,36 +351,87 @@
             resultDiv.innerHTML = '<div class="alert alert-info">Testing connection to backend...</div>';
 
             try {
-                // Try the mock endpoints
-                const response = await fetch('/api/mock-image', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Accept': 'application/json'
-                    },
-                    body: JSON.stringify({ test: true })
-                });
+                // Try the Netlify function test endpoint first
+                try {
+                    const testResponse = await fetch('/.netlify/functions/test', {
+                        method: 'GET',
+                        headers: {
+                            'Accept': 'application/json'
+                        }
+                    });
 
-                if (response.ok) {
-                    resultDiv.innerHTML = `
-                        <div class="alert alert-success">
-                            <h5>✅ Connection Successful!</h5>
-                            <p>The application is working in standalone mode with mock endpoints.</p>
-                            <p>You can process images and PDFs without requiring external dependencies.</p>
-                        </div>
-                    `;
-                    backendAvailable = true;
-                } else {
+                    if (testResponse.ok) {
+                        const testData = await testResponse.json();
+                        console.log('Netlify functions are working:', testData);
+
+                        // Now try the mock endpoints
+                        try {
+                            const mockResponse = await fetch('/.netlify/functions/mock-image', {
+                                method: 'POST',
+                                headers: {
+                                    'Content-Type': 'application/json',
+                                    'Accept': 'application/json'
+                                },
+                                body: JSON.stringify({ test: true })
+                            });
+
+                            if (mockResponse.ok) {
+                                resultDiv.innerHTML = `
+                                    <div class="alert alert-success">
+                                        <h5>✅ Connection Successful!</h5>
+                                        <p>The application is working in standalone mode with mock endpoints.</p>
+                                        <p>You can process images and PDFs without requiring external dependencies.</p>
+                                    </div>
+                                `;
+                                backendAvailable = true;
+                            } else {
+                                // Mock endpoint not working, but Netlify functions are
+                                resultDiv.innerHTML = `
+                                    <div class="alert alert-warning">
+                                        <h5>⚠️ Partial Connection</h5>
+                                        <p>Netlify functions are working, but the mock endpoints are not responding correctly.</p>
+                                        <p>Basic functionality should work, but some features may be limited.</p>
+                                    </div>
+                                `;
+                                backendAvailable = true; // Still mark as available since basic functions work
+                            }
+                        } catch (mockError) {
+                            // Mock endpoint error, but Netlify functions are working
+                            console.error('Error with mock endpoints:', mockError);
+                            resultDiv.innerHTML = `
+                                <div class="alert alert-warning">
+                                    <h5>⚠️ Partial Connection</h5>
+                                    <p>Netlify functions are working, but there was an error with the mock endpoints.</p>
+                                    <p>Basic functionality should work, but some features may be limited.</p>
+                                </div>
+                            `;
+                            backendAvailable = true; // Still mark as available since basic functions work
+                        }
+                    } else {
+                        // Netlify functions not working
+                        resultDiv.innerHTML = `
+                            <div class="alert alert-warning">
+                                <h5>⚠️ Connection Warning</h5>
+                                <p>Netlify functions may not be working properly.</p>
+                                <p>Some features may not work as expected.</p>
+                            </div>
+                        `;
+                        backendAvailable = false;
+                    }
+                } catch (testError) {
+                    // Error with Netlify functions test
+                    console.error('Error testing Netlify functions:', testError);
                     resultDiv.innerHTML = `
                         <div class="alert alert-warning">
                             <h5>⚠️ Connection Warning</h5>
-                            <p>The mock endpoints are not responding correctly.</p>
+                            <p>Error testing Netlify functions: ${testError.message}</p>
                             <p>Some features may not work as expected.</p>
                         </div>
                     `;
                     backendAvailable = false;
                 }
             } catch (error) {
+                // General error
                 resultDiv.innerHTML = `
                     <div class="alert alert-danger">
                         <h5>❌ Connection failed: ${error.message}</h5>

@@ -10,53 +10,93 @@ const RENDER_BACKEND_URL = process.env.RENDER_BACKEND_URL || 'https://blackhole-
 // Parse multipart form data
 const parseMultipartForm = event => {
   return new Promise((resolve, reject) => {
-    // Create a readable stream from the request body
-    const stream = Readable.from([Buffer.from(event.body, 'base64')]);
-
-    // Create a new FormData object
-    const formData = new FormData();
-
-    // Parse the multipart form data
-    const bb = busboy({
-      headers: {
-        'content-type': event.headers['content-type'] || event.headers['Content-Type']
+    try {
+      // Check if the body is base64 encoded
+      let buffer;
+      if (event.isBase64Encoded) {
+        buffer = Buffer.from(event.body, 'base64');
+      } else {
+        buffer = Buffer.from(event.body);
       }
-    });
 
-    // Handle file fields
-    bb.on('file', (name, file, info) => {
-      const { filename, encoding, mimeType } = info;
-      console.log(`Processing file: ${filename}, mimetype: ${mimeType}`);
+      // Log the size of the request body
+      console.log(`Request body size: ${buffer.length} bytes`);
 
-      const chunks = [];
-      file.on('data', data => chunks.push(data));
-      file.on('end', () => {
-        const fileBuffer = Buffer.concat(chunks);
-        formData.append(name, fileBuffer, {
-          filename,
-          contentType: mimeType
+      // Create a readable stream from the buffer
+      const stream = Readable.from([buffer]);
+
+      // Create a new FormData object
+      const formData = new FormData();
+
+      // Get the content type and boundary
+      const contentType = event.headers['content-type'] || event.headers['Content-Type'] || '';
+      console.log(`Content-Type: ${contentType}`);
+
+      // Parse the multipart form data with higher limits
+      const bb = busboy({
+        headers: {
+          'content-type': contentType
+        },
+        limits: {
+          fieldSize: 10 * 1024 * 1024, // 10MB
+          fields: 10,
+          fileSize: 50 * 1024 * 1024, // 50MB
+          files: 5
+        }
+      });
+
+      // Handle file fields
+      bb.on('file', (name, file, info) => {
+        const { filename, encoding, mimeType } = info;
+        console.log(`Processing file: ${filename}, mimetype: ${mimeType}`);
+
+        const chunks = [];
+        let fileSize = 0;
+
+        file.on('data', data => {
+          chunks.push(data);
+          fileSize += data.length;
+          console.log(`Received ${data.length} bytes, total: ${fileSize} bytes`);
+        });
+
+        file.on('end', () => {
+          console.log(`File processing complete: ${filename}, total size: ${fileSize} bytes`);
+          const fileBuffer = Buffer.concat(chunks);
+          formData.append(name, fileBuffer, {
+            filename,
+            contentType: mimeType
+          });
+        });
+
+        file.on('limit', () => {
+          console.warn(`File size limit reached for ${filename}`);
         });
       });
-    });
 
-    // Handle non-file fields
-    bb.on('field', (name, value) => {
-      console.log(`Processing field: ${name}=${value}`);
-      formData.append(name, value);
-    });
+      // Handle non-file fields
+      bb.on('field', (name, value) => {
+        console.log(`Processing field: ${name}=${value}`);
+        formData.append(name, value);
+      });
 
-    // Handle the end of parsing
-    bb.on('finish', () => {
-      resolve(formData);
-    });
+      // Handle the end of parsing
+      bb.on('finish', () => {
+        console.log('Form data parsing complete');
+        resolve(formData);
+      });
 
-    // Handle errors
-    bb.on('error', err => {
-      reject(new Error(`Error parsing form data: ${err.message}`));
-    });
+      // Handle errors
+      bb.on('error', err => {
+        console.error('Error parsing form data:', err);
+        reject(new Error(`Error parsing form data: ${err.message}`));
+      });
 
-    // Pipe the stream to busboy
-    stream.pipe(bb);
+      // Pipe the stream to busboy
+      stream.pipe(bb);
+    } catch (error) {
+      console.error('Exception in parseMultipartForm:', error);
+      reject(error);
+    }
   });
 };
 
@@ -153,11 +193,43 @@ exports.handler = async function(event, context) {
       bodyType: options.body ? typeof options.body : 'none'
     })}`);
 
-    // Make the request to the Render backend
-    const response = await fetch(fullUrl, options);
+    // Set a timeout for the fetch request (30 seconds)
+    const controller = new AbortController();
+    const timeout = setTimeout(() => {
+      controller.abort();
+    }, 30000);
 
-    // Get the response body
-    const responseBody = await response.text();
+    let response;
+    let responseBody;
+
+    try {
+      // Add the signal to the options
+      options.signal = controller.signal;
+
+      // Make the request to the Render backend
+      console.log('Sending request to Render backend...');
+      response = await fetch(fullUrl, options);
+      console.log('Received response from Render backend');
+
+      // Get the response body
+      console.log('Reading response body...');
+      responseBody = await response.text();
+      console.log('Response body read complete');
+
+      // Clear the timeout
+      clearTimeout(timeout);
+    } catch (fetchError) {
+      // Clear the timeout
+      clearTimeout(timeout);
+
+      // Check if the error is due to timeout
+      if (fetchError.name === 'AbortError') {
+        throw new Error('Request timed out after 30 seconds');
+      }
+
+      // Re-throw the error
+      throw fetchError;
+    }
 
     // Get the response headers
     const responseHeaders = {};

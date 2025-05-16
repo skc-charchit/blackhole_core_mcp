@@ -1,9 +1,7 @@
 // This file contains environment variables for the frontend
 // For local development, use an empty string (same origin)
 // For production, use the Netlify proxy to avoid CORS issues
-window.API_BASE_URL = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
-    ? '' // Empty string means same origin on localhost
-    : ''; // Empty string means same origin on Netlify (using the proxy)
+window.API_BASE_URL = '';  // Always use same origin (empty string) to avoid CORS issues
 
 // For debugging, also store the original Render backend URL
 window.RENDER_BACKEND_URL = 'https://blackhole-core-api.onrender.com';

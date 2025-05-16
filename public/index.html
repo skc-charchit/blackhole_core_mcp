@@ -56,6 +56,7 @@
                     <a href="cors-headers-test.html" class="btn btn-outline-secondary" target="_blank">CORS Headers Test</a>
                     <a href="direct-test.html" class="btn btn-outline-secondary" target="_blank">Direct Connection Test</a>
                     <a href="proxy-test.html" class="btn btn-outline-secondary" target="_blank">Proxy Test</a>
+                    <a href="function-test.html" class="btn btn-outline-secondary" target="_blank">Function Test</a>
                 </div>
             </div>
         </div>
@@ -218,9 +219,7 @@
         // The env.js file should set window.API_BASE_URL to your backend URL
         // For local development, we'll use an empty string (same origin)
         // For production, we'll use the Netlify proxy
-        const API_BASE_URL = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
-            ? '' // Empty string means same origin on localhost
-            : ''; // Empty string means same origin on Netlify (using the proxy)
+        const API_BASE_URL = ''; // Always use same origin (empty string) to avoid CORS issues
 
         // For debugging, also store the original Render backend URL
         const RENDER_BACKEND_URL = window.RENDER_BACKEND_URL || 'https://blackhole-core-api.onrender.com';

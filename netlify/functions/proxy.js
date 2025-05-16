@@ -43,6 +43,7 @@ exports.handler = async function(event, context) {
       headers: {
         'Content-Type': event.headers['content-type'] || 'application/json',
         'Accept': event.headers['accept'] || 'application/json',
+        'Origin': 'https://blackholebody.netlify.app',
       },
     };
 
@@ -67,11 +68,39 @@ exports.handler = async function(event, context) {
     console.log(`Response headers: ${JSON.stringify(responseHeaders)}`);
     console.log(`Response body: ${responseBody.substring(0, 200)}${responseBody.length > 200 ? '...' : ''}`);
 
+    // Try to parse the response body as JSON
+    let jsonResponse;
+    try {
+      jsonResponse = JSON.parse(responseBody);
+    } catch (e) {
+      console.log('Response is not valid JSON:', e.message);
+      // If the response is not valid JSON, it might be HTML or some other format
+      // In this case, we'll return a JSON error response
+      if (responseBody.includes('<html') || responseBody.includes('<!DOCTYPE')) {
+        return {
+          statusCode: 500,
+          headers: {
+            'Content-Type': 'application/json',
+            'Access-Control-Allow-Origin': '*',
+            'Access-Control-Allow-Headers': 'Content-Type, Accept, Authorization',
+            'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+          },
+          body: JSON.stringify({
+            error: 'Received HTML response from Render backend',
+            details: 'The Render backend returned HTML instead of JSON. This might indicate an error page or redirect.',
+            url: fullUrl,
+            method: event.httpMethod,
+            status: response.status,
+          }),
+        };
+      }
+    }
+
     // Return the response from the Render backend
     return {
       statusCode: response.status,
       headers: {
-        'Content-Type': responseHeaders['content-type'] || 'application/json',
+        'Content-Type': 'application/json',
         'Access-Control-Allow-Origin': '*',
         'Access-Control-Allow-Headers': 'Content-Type, Accept, Authorization',
         'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',

@@ -205,33 +205,47 @@ The API documentation provides interactive testing of all endpoints.
    uvicorn main:app --host 0.0.0.0 --port 8000 --workers 4
    ```
 
-### Netlify Deployment (Frontend + Backend)
+### Deployment Setup (Render Backend + Netlify Frontend)
 
-This project is configured for easy deployment to Netlify with both frontend and backend:
+This project is configured for deployment with the backend on Render and the frontend on Netlify:
+
+#### Backend Deployment (Render)
+
+1. Push your code to a Git repository (GitHub, GitLab, or Bitbucket).
+
+2. Log in to Render and click "New Web Service".
+
+3. Select your repository and configure the deployment settings:
+   - Build command: `pip install -r requirements.txt`
+   - Start command: `uvicorn main:app --host 0.0.0.0 --port $PORT`
+   - Environment variables:
+     - `MONGO_URI`: Your MongoDB connection string
+     - `CORS_ORIGINS`: `*` (or your specific origins including your Netlify domain)
+
+4. Click "Create Web Service".
+
+5. Your backend API will be available at the Render URL (e.g., https://blackhole-core-api.onrender.com).
+
+#### Frontend Deployment (Netlify)
 
 1. Push your code to a Git repository (GitHub, GitLab, or Bitbucket).
 
 2. Log in to Netlify and click "New site from Git".
 
 3. Select your repository and configure the deployment settings:
-   - Build command: `node update_env.js && pip install -r requirements.txt -t netlify/functions/api/lib`
+   - Build command: `node update_env.js`
    - Publish directory: `public`
 
 4. Click "Deploy site".
 
 5. After deployment, go to Site settings > Build & deploy > Environment variables and add:
-   - `MONGO_URI`: Your MongoDB connection string
-   - `CORS_ORIGINS`: `*` (or your specific origins)
+   - `API_BASE_URL`: Your Render backend URL (e.g., https://blackhole-core-api.onrender.com)
 
 6. Trigger a new deployment for the environment variables to take effect.
 
-7. Your application should now be accessible at the Netlify URL (e.g., https://your-site-name.netlify.app).
+7. Your frontend will be accessible at the Netlify URL (e.g., https://blackholebody.netlify.app).
 
-8. If you encounter a "Page not found" error, check that:
-   - The `netlify.toml` file is in the root directory
-   - The publish directory is set to `public`
-
-9. The backend API will be available at `/.netlify/functions/api` and the frontend is automatically configured to use this URL in production.
+8. The frontend is automatically configured to use the Render backend URL in production.
 
 ## Modules
 

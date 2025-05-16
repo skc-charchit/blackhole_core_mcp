@@ -82,6 +82,9 @@ if cors_origins == '*':
 else:
     # Allow specific origins
     origins = cors_origins.split(',')
+    # Always include the Netlify domain
+    if 'blackholebody.netlify.app' not in origins:
+        origins.append('https://blackholebody.netlify.app')
     logger.info(f"CORS origins: {origins}")
     app.add_middleware(
         CORSMiddleware,

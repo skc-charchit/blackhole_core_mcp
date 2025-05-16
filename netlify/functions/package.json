@@ -1,0 +1,9 @@
+{
+  "name": "netlify-functions",
+  "version": "1.0.0",
+  "description": "Netlify Functions for Blackhole Core MCP",
+  "main": "proxy.js",
+  "dependencies": {
+    "node-fetch": "^2.6.7"
+  }
+}

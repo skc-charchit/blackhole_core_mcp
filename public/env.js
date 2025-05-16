@@ -8,5 +8,8 @@ window.API_BASE_URL = window.location.hostname === 'localhost' || window.locatio
 // For debugging, also store the original Render backend URL
 window.RENDER_BACKEND_URL = 'https://blackhole-core-api.onrender.com';
 
+// Log the configuration
 console.log('API_BASE_URL set to:', window.API_BASE_URL);
 console.log('RENDER_BACKEND_URL set to:', window.RENDER_BACKEND_URL);
+console.log('Hostname:', window.location.hostname);
+console.log('Origin:', window.location.origin);

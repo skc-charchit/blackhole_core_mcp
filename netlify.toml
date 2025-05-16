@@ -3,6 +3,16 @@
   command = "npm install && node update_env.js"
 
 [[redirects]]
+  from = "/api/process-image"
+  to = "/.netlify/functions/process-image"
+  status = 200
+
+[[redirects]]
+  from = "/api/process-pdf"
+  to = "/.netlify/functions/process-pdf"
+  status = 200
+
+[[redirects]]
   from = "/api/*"
   to = "/.netlify/functions/proxy/:splat"
   status = 200

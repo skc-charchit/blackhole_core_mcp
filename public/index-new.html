@@ -208,65 +208,128 @@
                 return;
             }
 
+            const file = fileInput.files[0];
             const formData = new FormData();
-            formData.append('file', fileInput.files[0]);
+            formData.append('file', file);
 
             showLoading();
             try {
                 // Try the direct Netlify function first, then the mock endpoint, and finally fall back to the proxy
                 let response;
+                let useLocalMock = false;
+
                 try {
                     // First try the direct Netlify function
-                    response = await fetch('/.netlify/functions/mock-image', {
-                        method: 'POST',
-                        body: formData
-                    });
-                    console.log('Using direct Netlify function for image processing');
-                } catch (directError) {
-                    console.warn('Direct Netlify function failed, trying mock endpoint:', directError);
                     try {
-                        // Then try the mock endpoint via the redirect
-                        response = await fetch('/api/mock-image', {
+                        response = await fetch('/.netlify/functions/mock-image', {
                             method: 'POST',
                             body: formData
                         });
-                        console.log('Using mock endpoint for image processing');
-                    } catch (mockError) {
-                        console.warn('Mock image endpoint failed, falling back to proxy:', mockError);
-                        // Finally fall back to the proxy
-                        response = await fetch('/.netlify/functions/proxy/api/process-image', {
-                            method: 'POST',
-                            body: formData
-                        });
-                        console.log('Using proxy for image processing');
+                        console.log('Using direct Netlify function for image processing');
+                    } catch (directError) {
+                        console.warn('Direct Netlify function failed, trying mock endpoint:', directError);
+                        try {
+                            // Then try the mock endpoint via the redirect
+                            response = await fetch('/api/mock-image', {
+                                method: 'POST',
+                                body: formData
+                            });
+                            console.log('Using mock endpoint for image processing');
+                        } catch (mockError) {
+                            console.warn('Mock image endpoint failed, falling back to proxy:', mockError);
+                            try {
+                                // Finally fall back to the proxy
+                                response = await fetch('/.netlify/functions/proxy/api/process-image', {
+                                    method: 'POST',
+                                    body: formData
+                                });
+                                console.log('Using proxy for image processing');
+                            } catch (proxyError) {
+                                console.warn('All remote endpoints failed, using local mock:', proxyError);
+                                useLocalMock = true;
+                            }
+                        }
                     }
-                }
 
-                const responseText = await response.text();
-                let data;
+                    if (!useLocalMock) {
+                        const responseText = await response.text();
+                        let data;
 
-                try {
-                    data = JSON.parse(responseText);
-                } catch (e) {
-                    console.error('Invalid JSON response:', responseText);
-                    throw new Error(`Invalid JSON response: ${responseText.substring(0, 100)}...`);
-                }
+                        try {
+                            data = JSON.parse(responseText);
+                        } catch (e) {
+                            console.error('Invalid JSON response:', responseText);
+                            // If we can't parse the response, check if it contains "Internal Error"
+                            if (responseText.includes('Internal Error')) {
+                                console.warn('Internal error detected in response, using local mock');
+                                useLocalMock = true;
+                            } else {
+                                throw new Error(`Invalid JSON response: ${responseText.substring(0, 100)}...`);
+                            }
+                        }
 
-                if (response.ok) {
-                    // Check if the extracted text contains the Tesseract error message
-                    if (data.extracted_text && data.extracted_text.includes('Tesseract-OCR')) {
-                        // Display a more user-friendly message
-                        document.getElementById('imageExtractedText').textContent =
-                            "Text extraction is not available in this environment. The server does not have Tesseract OCR installed, " +
-                            "which is required for text extraction from images. However, the image was processed successfully.";
+                        if (!useLocalMock) {
+                            if (!response.ok) {
+                                if (data && data.error && data.error.includes('Internal Error')) {
+                                    console.warn('Internal error detected in response data, using local mock');
+                                    useLocalMock = true;
+                                } else {
+                                    throw new Error(data.error || 'Unknown error');
+                                }
+                            } else {
+                                // Process the successful response
+                                // Check if the extracted text contains the Tesseract error message
+                                if (data.extracted_text && data.extracted_text.includes('Tesseract-OCR')) {
+                                    // Display a more user-friendly message
+                                    document.getElementById('imageExtractedText').textContent =
+                                        "Text extraction is not available in this environment. The server does not have Tesseract OCR installed, " +
+                                        "which is required for text extraction from images. However, the image was processed successfully.";
+                                } else {
+                                    document.getElementById('imageExtractedText').textContent = data.extracted_text;
+                                }
+
+                                document.getElementById('imageAgentOutput').textContent = formatJSON(data.agent_result);
+                                document.getElementById('imageResult').classList.remove('d-none');
+                                hideLoading();
+                                return;
+                            }
+                        }
+                    }
+                } catch (error) {
+                    // If the error message contains "Internal Error", use a local mock
+                    if (error.message && error.message.includes('Internal Error')) {
+                        console.warn('Internal error detected in error message, using local mock');
+                        useLocalMock = true;
                     } else {
-                        document.getElementById('imageExtractedText').textContent = data.extracted_text;
+                        throw error;
                     }
+                }
 
-                    document.getElementById('imageAgentOutput').textContent = formatJSON(data.agent_result);
+                // If we get here, we need to use a local mock
+                if (useLocalMock) {
+                    console.log('Using local mock for image processing');
+
+                    // Create a mock response
+                    const mockData = {
+                        extracted_text: `This is a locally generated mock response for the image file "${file.name}". The backend server was unable to process this image, but we're providing this mock data so you can see how the application would work with real data. In a production environment, you would see the actual text extracted from the image.`,
+                        agent_result: {
+                            agent: "ArchiveSearchAgent",
+                            input: {
+                                document_text: `Mock data for ${file.name}`
+                            },
+                            metadata: {
+                                source_file: file.name,
+                                processed_at: new Date().toISOString()
+                            },
+                            output: "This is a mock response generated locally because the backend server encountered an error. No matches found in the archive.",
+                            timestamp: new Date().toISOString()
+                        }
+                    };
+
+                    // Display the mock data
+                    document.getElementById('imageExtractedText').textContent = mockData.extracted_text;
+                    document.getElementById('imageAgentOutput').textContent = formatJSON(mockData.agent_result);
                     document.getElementById('imageResult').classList.remove('d-none');
-                } else {
-                    alert(`Error: ${data.error || 'Unknown error'}`);
                 }
             } catch (error) {
                 alert(`Error: ${error.message}`);
@@ -450,50 +513,117 @@
 
         // Function to process a PDF file
         async function processPDFFile(formData) {
-            // Try the direct Netlify function first, then the mock endpoint, and finally fall back to the proxy
-            let response;
-            try {
-                // First try the direct Netlify function
-                response = await fetch('/.netlify/functions/mock-pdf', {
-                    method: 'POST',
-                    body: formData
-                });
-                console.log('Using direct Netlify function for PDF processing');
-            } catch (directError) {
-                console.warn('Direct Netlify function failed, trying mock endpoint:', directError);
-                try {
-                    // Then try the mock endpoint via the redirect
-                    response = await fetch('/api/mock-pdf', {
-                        method: 'POST',
-                        body: formData
-                    });
-                    console.log('Using mock endpoint for PDF processing');
-                } catch (mockError) {
-                    console.warn('Mock PDF endpoint failed, falling back to proxy:', mockError);
-                    // Finally fall back to the proxy
-                    response = await fetch('/.netlify/functions/proxy/api/process-pdf', {
-                        method: 'POST',
-                        body: formData
-                    });
-                    console.log('Using proxy for PDF processing');
+            // Get the filename from the form data
+            let filename = "unknown.pdf";
+            for (const pair of formData.entries()) {
+                if (pair[0] === 'filename') {
+                    filename = pair[1];
+                    break;
                 }
             }
 
-            const responseText = await response.text();
-            let data;
+            // Try the direct Netlify function first, then the mock endpoint, and finally fall back to the proxy
+            let response;
+            let useLocalMock = false;
 
             try {
-                data = JSON.parse(responseText);
-            } catch (e) {
-                console.error('Invalid JSON response:', responseText);
-                throw new Error(`Invalid JSON response: ${responseText.substring(0, 100)}...`);
+                // First try the direct Netlify function
+                try {
+                    response = await fetch('/.netlify/functions/mock-pdf', {
+                        method: 'POST',
+                        body: formData
+                    });
+                    console.log('Using direct Netlify function for PDF processing');
+                } catch (directError) {
+                    console.warn('Direct Netlify function failed, trying mock endpoint:', directError);
+                    try {
+                        // Then try the mock endpoint via the redirect
+                        response = await fetch('/api/mock-pdf', {
+                            method: 'POST',
+                            body: formData
+                        });
+                        console.log('Using mock endpoint for PDF processing');
+                    } catch (mockError) {
+                        console.warn('Mock PDF endpoint failed, falling back to proxy:', mockError);
+                        try {
+                            // Finally fall back to the proxy
+                            response = await fetch('/.netlify/functions/proxy/api/process-pdf', {
+                                method: 'POST',
+                                body: formData
+                            });
+                            console.log('Using proxy for PDF processing');
+                        } catch (proxyError) {
+                            console.warn('All remote endpoints failed, using local mock:', proxyError);
+                            useLocalMock = true;
+                        }
+                    }
+                }
+
+                if (!useLocalMock) {
+                    const responseText = await response.text();
+                    let data;
+
+                    try {
+                        data = JSON.parse(responseText);
+                    } catch (e) {
+                        console.error('Invalid JSON response:', responseText);
+                        // If we can't parse the response, check if it contains "Internal Error"
+                        if (responseText.includes('Internal Error')) {
+                            console.warn('Internal error detected in response, using local mock');
+                            useLocalMock = true;
+                        } else {
+                            throw new Error(`Invalid JSON response: ${responseText.substring(0, 100)}...`);
+                        }
+                    }
+
+                    if (!useLocalMock) {
+                        if (!response.ok) {
+                            if (data && data.error && data.error.includes('Internal Error')) {
+                                console.warn('Internal error detected in response data, using local mock');
+                                useLocalMock = true;
+                            } else {
+                                throw new Error(data.error || 'Unknown error');
+                            }
+                        } else {
+                            return data;
+                        }
+                    }
+                }
+            } catch (error) {
+                // If the error message contains "Internal Error", use a local mock
+                if (error.message && error.message.includes('Internal Error')) {
+                    console.warn('Internal error detected in error message, using local mock');
+                    useLocalMock = true;
+                } else {
+                    throw error;
+                }
             }
 
-            if (!response.ok) {
-                throw new Error(data.error || 'Unknown error');
-            }
+            // If we get here, we need to use a local mock
+            if (useLocalMock) {
+                console.log('Using local mock for PDF processing');
 
-            return data;
+                // Generate a random MongoDB ID
+                const mongoDBId = Array.from(Array(24), () => Math.floor(Math.random() * 16).toString(16)).join('');
+
+                // Create a mock response
+                return {
+                    extracted_text: `This is a locally generated mock response for the PDF file "${filename}". The backend server was unable to process this PDF, but we're providing this mock data so you can see how the application would work with real data. In a production environment, you would see the actual text extracted from the PDF.`,
+                    agent_result: {
+                        agent: "ArchiveSearchAgent",
+                        input: {
+                            document_text: `Mock data for ${filename}`
+                        },
+                        metadata: {
+                            source_file: filename,
+                            processed_at: new Date().toISOString()
+                        },
+                        output: "This is a mock response generated locally because the backend server encountered an error. No matches found in the archive.",
+                        timestamp: new Date().toISOString()
+                    },
+                    mongodb_id: mongoDBId
+                };
+            }
         }
 
         // Test connection button

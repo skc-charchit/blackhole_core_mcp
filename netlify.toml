@@ -2,6 +2,20 @@
   publish = "public"
   command = "npm install && node update_env.js"
 
+[functions]
+  node_bundler = "esbuild"
+  external_node_modules = ["mongoose"]
+
+  # Increase the function timeout to the maximum allowed
+  [functions.process-document]
+    timeout = 30
+
+  [functions.search]
+    timeout = 30
+
+  [functions.live-data]
+    timeout = 30
+
 [[redirects]]
   from = "/api/mongodb-status"
   to = "/.netlify/functions/mongodb-status"

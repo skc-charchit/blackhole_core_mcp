@@ -1,7 +1,7 @@
 // Simplified Netlify function to search documents without complex dependencies
 const crypto = require('crypto');
 const mongoose = require('mongoose');
-const { autoConnect, getConnectionStatus } = require('../../agents/db/mongodb_connection');
+const { autoConnect, getConnectionStatus } = require('./utils/mongodb_connection');
 
 // Generate a mock MongoDB ID
 function generateMongoDBId() {

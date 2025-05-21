@@ -1,6 +1,6 @@
 // Netlify function to check MongoDB connection status
 const mongoose = require('mongoose');
-const { autoConnect, getConnectionStatus } = require('../agents/db/mongodb_connection');
+const { autoConnect, getConnectionStatus } = require('./utils/mongodb_connection');
 
 exports.handler = async function(event, context) {
   // Make the database connection reusable across function invocations

@@ -3,7 +3,7 @@ const busboy = require('busboy');
 const { Readable } = require('stream');
 const crypto = require('crypto');
 const mongoose = require('mongoose');
-const { autoConnect, getConnectionStatus } = require('../../agents/db/mongodb_connection');
+const { autoConnect, getConnectionStatus } = require('./utils/mongodb_connection');
 
 // Parse multipart form data with a timeout
 const parseMultipartForm = (event, maxTimeMs = 3000) => {

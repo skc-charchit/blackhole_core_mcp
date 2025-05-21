@@ -1,5 +1,5 @@
 // Netlify function to test the environment and configuration
-const { getConnectionStatus } = require('./utils/mongodb');
+const { autoConnect, getConnectionStatus } = require('./utils/mongodb_connection');
 
 exports.handler = async function(event, context) {
   // Make the database connection reusable across function invocations
@@ -20,10 +20,11 @@ exports.handler = async function(event, context) {
   }
 
   try {
-    // Get MongoDB status
+    // Try to auto-connect to MongoDB
     let mongodbStatus = 'not checked';
     try {
-      const status = await getConnectionStatus();
+      await autoConnect();
+      const status = getConnectionStatus();
       mongodbStatus = status.status;
     } catch (mongoError) {
       console.error('Error checking MongoDB status:', mongoError);

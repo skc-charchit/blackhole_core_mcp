@@ -1,4 +1,6 @@
 // Simplified Netlify function to fetch live data without complex dependencies
+const mongoose = require('mongoose');
+const { autoConnect, getConnectionStatus } = require('./utils/mongodb_connection');
 
 // Get mock weather data
 function getMockWeatherData(location) {
@@ -177,6 +179,9 @@ function processLiveDataRequest(source, query = {}) {
 }
 
 exports.handler = async function(event, context) {
+  // Make the database connection reusable across function invocations
+  context.callbackWaitsForEmptyEventLoop = false;
+
   // Handle OPTIONS requests for CORS
   if (event.httpMethod === 'OPTIONS') {
     return {
@@ -191,19 +196,24 @@ exports.handler = async function(event, context) {
     };
   }
 
+  // Start MongoDB auto-connection in the background
+  autoConnect().catch(err => {
+    console.warn('MongoDB auto-connection failed:', err.message);
+  });
+
   try {
     // Set a timeout for the entire function
     const functionTimeout = setTimeout(() => {
       throw new Error('Function execution timeout');
     }, 8000);
-    
+
     // Parse the request
     let source, query;
-    
+
     if (event.httpMethod === 'GET') {
       // Get source and query from query parameters
       source = event.queryStringParameters?.source;
-      
+
       // Parse query if provided
       if (event.queryStringParameters?.query) {
         try {
@@ -214,8 +224,8 @@ exports.handler = async function(event, context) {
         }
       } else {
         // If no query is provided, create a default one
-        query = event.queryStringParameters?.location ? 
-          { location: event.queryStringParameters.location } : 
+        query = event.queryStringParameters?.location ?
+          { location: event.queryStringParameters.location } :
           {};
       }
     } else if (event.httpMethod === 'POST') {
@@ -226,7 +236,7 @@ exports.handler = async function(event, context) {
         query = body.query || {};
       } catch (error) {
         console.warn('Error parsing request body:', error);
-        
+
         // Try to extract source directly from body
         const bodyStr = event.body || '';
         const sourceMatch = bodyStr.match(/"source"\s*:\s*"([^"]+)"/);
@@ -247,7 +257,7 @@ exports.handler = async function(event, context) {
         }),
       };
     }
-    
+
     // Validate the source
     if (!source) {
       clearTimeout(functionTimeout);
@@ -263,13 +273,13 @@ exports.handler = async function(event, context) {
         }),
       };
     }
-    
+
     // Process the live data request
     const result = processLiveDataRequest(source, query);
-    
+
     // Clear the function timeout
     clearTimeout(functionTimeout);
-    
+
     // Return the data
     return {
       statusCode: 200,
@@ -281,7 +291,7 @@ exports.handler = async function(event, context) {
     };
   } catch (error) {
     console.error('Error fetching live data:', error);
-    
+
     // Return a fallback response
     return {
       statusCode: 200, // Return 200 even for errors to avoid client-side error handling

@@ -1,0 +1,9 @@
+pymongo
+python-dotenv==1.0.1
+requests
+fastapi
+uvicorn
+pydantic
+mangum
+boto3
+dnspython

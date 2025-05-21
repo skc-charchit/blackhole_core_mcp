@@ -81,22 +81,52 @@
                 <p>Upload a PDF to extract text and analyze it with the BlackHole AI agents.</p>
                 <form id="pdfForm">
                     <div class="mb-3">
-                        <label for="pdfFile" class="form-label">Select a PDF file:</label>
-                        <input class="form-control" type="file" id="pdfFile" accept="application/pdf" required>
+                        <label for="pdfFile" class="form-label">Select PDF files (multiple files allowed):</label>
+                        <input class="form-control" type="file" id="pdfFile" accept="application/pdf" multiple required>
                     </div>
-                    <button type="submit" class="btn btn-primary">Process PDF</button>
-                </form>
-                <div id="pdfResult" class="mt-4 d-none">
-                    <h4>Results</h4>
                     <div class="mb-3">
-                        <h5>Extracted Text:</h5>
-                        <pre id="pdfExtractedText"></pre>
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="saveToMongoDB" checked>
+                            <label class="form-check-label" for="saveToMongoDB">
+                                Save results to MongoDB
+                            </label>
+                        </div>
                     </div>
-                    <div>
-                        <h5>Agent Output:</h5>
-                        <pre id="pdfAgentOutput"></pre>
-                    </div>
+                    <button type="submit" class="btn btn-primary">Process PDFs</button>
+                </form>
+                <div id="uploadProgress" class="progress mt-3 d-none">
+                    <div class="progress-bar progress-bar-striped progress-bar-animated" role="progressbar" style="width: 0%"></div>
                 </div>
+                <div id="pdfResults" class="mt-4">
+                    <!-- Results will be dynamically added here -->
+                </div>
+
+                <!-- Template for PDF results -->
+                <template id="pdfResultTemplate">
+                    <div class="card mb-4 pdf-result">
+                        <div class="card-header d-flex justify-content-between align-items-center">
+                            <h5 class="pdf-filename mb-0">Filename</h5>
+                            <div>
+                                <span class="badge bg-success pdf-status">Processed</span>
+                                <button class="btn btn-sm btn-outline-primary ms-2 btn-toggle-details">Show Details</button>
+                            </div>
+                        </div>
+                        <div class="card-body pdf-details" style="display: none;">
+                            <div class="mb-3">
+                                <h6>Extracted Text:</h6>
+                                <pre class="pdf-extracted-text"></pre>
+                            </div>
+                            <div>
+                                <h6>Agent Output:</h6>
+                                <pre class="pdf-agent-output"></pre>
+                            </div>
+                            <div class="mt-3">
+                                <h6>MongoDB ID:</h6>
+                                <code class="pdf-mongodb-id">Not saved</code>
+                            </div>
+                        </div>
+                    </div>
+                </template>
             </div>
             <div class="tab-pane fade" id="search" role="tabpanel" aria-labelledby="search-tab">
                 <h3>Search Archive</h3>
@@ -245,105 +275,226 @@
             }
         });
 
-        // Process PDF form submission
+        // Process PDF form submission for multiple files
         document.getElementById('pdfForm').addEventListener('submit', async function(e) {
             e.preventDefault();
 
             const fileInput = document.getElementById('pdfFile');
+            const saveToMongoDB = document.getElementById('saveToMongoDB').checked;
+
             if (!fileInput.files.length) {
-                alert('Please select a PDF file');
+                alert('Please select at least one PDF file');
                 return;
             }
 
-            const formData = new FormData();
-            formData.append('file', fileInput.files[0]);
+            // Clear previous results
+            document.getElementById('pdfResults').innerHTML = '';
+
+            // Show progress bar
+            const progressBar = document.querySelector('#uploadProgress .progress-bar');
+            document.getElementById('uploadProgress').classList.remove('d-none');
+            progressBar.style.width = '0%';
+            progressBar.setAttribute('aria-valuenow', 0);
+
+            // Process each file
+            const files = Array.from(fileInput.files);
+            let completedFiles = 0;
 
             showLoading();
+
+            // Process files in parallel with a limit of 3 concurrent uploads
+            const concurrencyLimit = 3;
+            const chunks = [];
+
+            // Split files into chunks for concurrent processing
+            for (let i = 0; i < files.length; i += concurrencyLimit) {
+                chunks.push(files.slice(i, i + concurrencyLimit));
+            }
+
+            // Process each chunk sequentially
+            for (const chunk of chunks) {
+                // Process files in this chunk concurrently
+                await Promise.all(chunk.map(async (file) => {
+                    // Create a result card for this file
+                    const resultCard = createResultCard(file.name);
+                    document.getElementById('pdfResults').appendChild(resultCard);
+
+                    try {
+                        // Create form data for this file
+                        const formData = new FormData();
+                        formData.append('file', file);
+                        formData.append('save_to_mongodb', saveToMongoDB.toString());
+                        formData.append('filename', file.name);
+
+                        // Process the file
+                        const result = await processPDFFile(formData);
+
+                        // Update the result card with the processed data
+                        updateResultCard(resultCard, file.name, result);
+
+                        // Update progress
+                        completedFiles++;
+                        const progress = Math.round((completedFiles / files.length) * 100);
+                        progressBar.style.width = `${progress}%`;
+                        progressBar.setAttribute('aria-valuenow', progress);
+                    } catch (error) {
+                        // Update the result card with the error
+                        updateResultCardWithError(resultCard, file.name, error);
+
+                        // Update progress
+                        completedFiles++;
+                        const progress = Math.round((completedFiles / files.length) * 100);
+                        progressBar.style.width = `${progress}%`;
+                        progressBar.setAttribute('aria-valuenow', progress);
+                    }
+                }));
+            }
+
+            hideLoading();
+        });
+
+        // Function to create a result card for a file
+        function createResultCard(filename) {
+            const template = document.getElementById('pdfResultTemplate');
+            const resultCard = template.content.cloneNode(true).querySelector('.pdf-result');
+
+            // Set the filename
+            resultCard.querySelector('.pdf-filename').textContent = filename;
+
+            // Set the status to "Processing"
+            const statusBadge = resultCard.querySelector('.pdf-status');
+            statusBadge.textContent = 'Processing';
+            statusBadge.classList.remove('bg-success');
+            statusBadge.classList.add('bg-warning');
+
+            // Add event listener to toggle details button
+            resultCard.querySelector('.btn-toggle-details').addEventListener('click', function() {
+                const details = resultCard.querySelector('.pdf-details');
+                if (details.style.display === 'none') {
+                    details.style.display = 'block';
+                    this.textContent = 'Hide Details';
+                } else {
+                    details.style.display = 'none';
+                    this.textContent = 'Show Details';
+                }
+            });
+
+            return resultCard;
+        }
+
+        // Function to update a result card with processed data
+        function updateResultCard(resultCard, filename, result) {
+            // Set the status to "Processed"
+            const statusBadge = resultCard.querySelector('.pdf-status');
+            statusBadge.textContent = 'Processed';
+            statusBadge.classList.remove('bg-warning');
+            statusBadge.classList.add('bg-success');
+
+            // Set the extracted text
+            const extractedTextElement = resultCard.querySelector('.pdf-extracted-text');
+            if (result.error && result.error.includes('Internal Error')) {
+                extractedTextElement.textContent =
+                    "PDF processing is not available in this environment. The server encountered an internal error " +
+                    "while processing the PDF. This might be due to missing dependencies or resource limitations.";
+            } else {
+                extractedTextElement.textContent = result.extracted_text || 'No text extracted';
+            }
+
+            // Set the agent output
+            const agentOutputElement = resultCard.querySelector('.pdf-agent-output');
+            if (result.error && result.error.includes('Internal Error')) {
+                // Create a simple mock agent result
+                const mockAgentResult = {
+                    agent: "ArchiveSearchAgent",
+                    input: {
+                        document_text: "PDF processing is not available in this environment."
+                    },
+                    metadata: {
+                        source_file: "mock_response.txt",
+                        processed_at: new Date().toISOString()
+                    },
+                    output: "No matches found due to PDF processing limitations.",
+                    timestamp: new Date().toISOString()
+                };
+                agentOutputElement.textContent = formatJSON(mockAgentResult);
+            } else {
+                agentOutputElement.textContent = formatJSON(result.agent_result || {});
+            }
+
+            // Set the MongoDB ID if available
+            const mongoDBIdElement = resultCard.querySelector('.pdf-mongodb-id');
+            if (result.mongodb_id) {
+                mongoDBIdElement.textContent = result.mongodb_id;
+            } else {
+                mongoDBIdElement.textContent = 'Not saved to MongoDB';
+            }
+        }
+
+        // Function to update a result card with an error
+        function updateResultCardWithError(resultCard, filename, error) {
+            // Set the status to "Error"
+            const statusBadge = resultCard.querySelector('.pdf-status');
+            statusBadge.textContent = 'Error';
+            statusBadge.classList.remove('bg-warning');
+            statusBadge.classList.add('bg-danger');
+
+            // Set the extracted text to the error message
+            resultCard.querySelector('.pdf-extracted-text').textContent = `Error: ${error.message}`;
+
+            // Set the agent output to an empty object
+            resultCard.querySelector('.pdf-agent-output').textContent = '{}';
+
+            // Set the MongoDB ID to "Not saved"
+            resultCard.querySelector('.pdf-mongodb-id').textContent = 'Not saved due to error';
+        }
+
+        // Function to process a PDF file
+        async function processPDFFile(formData) {
+            // Try the direct Netlify function first, then the mock endpoint, and finally fall back to the proxy
+            let response;
             try {
-                // Try the direct Netlify function first, then the mock endpoint, and finally fall back to the proxy
-                let response;
+                // First try the direct Netlify function
+                response = await fetch('/.netlify/functions/mock-pdf', {
+                    method: 'POST',
+                    body: formData
+                });
+                console.log('Using direct Netlify function for PDF processing');
+            } catch (directError) {
+                console.warn('Direct Netlify function failed, trying mock endpoint:', directError);
                 try {
-                    // First try the direct Netlify function
-                    response = await fetch('/.netlify/functions/mock-pdf', {
+                    // Then try the mock endpoint via the redirect
+                    response = await fetch('/api/mock-pdf', {
                         method: 'POST',
                         body: formData
                     });
-                    console.log('Using direct Netlify function for PDF processing');
-                } catch (directError) {
-                    console.warn('Direct Netlify function failed, trying mock endpoint:', directError);
-                    try {
-                        // Then try the mock endpoint via the redirect
-                        response = await fetch('/api/mock-pdf', {
-                            method: 'POST',
-                            body: formData
-                        });
-                        console.log('Using mock endpoint for PDF processing');
-                    } catch (mockError) {
-                        console.warn('Mock PDF endpoint failed, falling back to proxy:', mockError);
-                        // Finally fall back to the proxy
-                        response = await fetch('/.netlify/functions/proxy/api/process-pdf', {
-                            method: 'POST',
-                            body: formData
-                        });
-                        console.log('Using proxy for PDF processing');
-                    }
+                    console.log('Using mock endpoint for PDF processing');
+                } catch (mockError) {
+                    console.warn('Mock PDF endpoint failed, falling back to proxy:', mockError);
+                    // Finally fall back to the proxy
+                    response = await fetch('/.netlify/functions/proxy/api/process-pdf', {
+                        method: 'POST',
+                        body: formData
+                    });
+                    console.log('Using proxy for PDF processing');
                 }
-
-                const responseText = await response.text();
-                let data;
-
-                try {
-                    data = JSON.parse(responseText);
-                } catch (e) {
-                    console.error('Invalid JSON response:', responseText);
-                    throw new Error(`Invalid JSON response: ${responseText.substring(0, 100)}...`);
-                }
-
-                if (response.ok) {
-                    // Check if there was an internal error
-                    if (data.error && data.error.includes('Internal Error')) {
-                        // Display a more user-friendly message
-                        document.getElementById('pdfExtractedText').textContent =
-                            "PDF processing is not available in this environment. The server encountered an internal error " +
-                            "while processing the PDF. This might be due to missing dependencies or resource limitations.";
-
-                        // Create a simple mock agent result
-                        const mockAgentResult = {
-                            agent: "ArchiveSearchAgent",
-                            input: {
-                                document_text: "PDF processing is not available in this environment."
-                            },
-                            metadata: {
-                                source_file: "mock_response.txt",
-                                processed_at: new Date().toISOString()
-                            },
-                            output: "No matches found due to PDF processing limitations.",
-                            timestamp: new Date().toISOString()
-                        };
-
-                        document.getElementById('pdfAgentOutput').textContent = formatJSON(mockAgentResult);
-                    } else {
-                        document.getElementById('pdfExtractedText').textContent = data.extracted_text;
-                        document.getElementById('pdfAgentOutput').textContent = formatJSON(data.agent_result);
-                    }
-
-                    document.getElementById('pdfResult').classList.remove('d-none');
-                } else {
-                    // Check if the error is an internal error
-                    if (data.error && data.error.includes('Internal Error')) {
-                        // Display a more user-friendly message
-                        alert("PDF processing is not available in this environment. The server encountered an internal error " +
-                              "while processing the PDF. This might be due to missing dependencies or resource limitations.");
-                    } else {
-                        alert(`Error: ${data.error || 'Unknown error'}`);
-                    }
-                }
-            } catch (error) {
-                alert(`Error: ${error.message}`);
-            } finally {
-                hideLoading();
             }
-        });
+
+            const responseText = await response.text();
+            let data;
+
+            try {
+                data = JSON.parse(responseText);
+            } catch (e) {
+                console.error('Invalid JSON response:', responseText);
+                throw new Error(`Invalid JSON response: ${responseText.substring(0, 100)}...`);
+            }
+
+            if (!response.ok) {
+                throw new Error(data.error || 'Unknown error');
+            }
+
+            return data;
+        }
 
         // Test connection button
         document.getElementById('testConnectionBtn').addEventListener('click', async function() {

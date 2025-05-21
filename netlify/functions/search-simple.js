@@ -49,7 +49,8 @@ async function searchMongoDB(query, filters = {}) {
 
     // Execute the search
     const collection = mongoose.connection.db.collection('agent_results');
-    const documents = await collection.find(searchQuery).limit(10).toArray();
+    const cursor = collection.find(searchQuery);
+    const documents = await cursor.limit(10).toArray();
 
     console.log(`Found ${documents.length} documents matching query: ${query}`);
 

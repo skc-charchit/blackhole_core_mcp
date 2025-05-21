@@ -18,7 +18,7 @@ const createIndexes = async (db) => {
     await agentResultsCollection.createIndex({ created_at: 1 });
     await agentResultsCollection.createIndex({ 'input.file.name': 1 });
     await agentResultsCollection.createIndex({ 'output.extracted_text': 'text' });
-    
+
     console.log('MongoDB indexes created successfully');
   } catch (error) {
     console.error('Error creating MongoDB indexes:', error);
@@ -36,7 +36,7 @@ async function connectToMongoDB(uri, options = {}) {
   if (cachedConnection && mongoose.connection.readyState === 1) {
     return cachedConnection;
   }
-  
+
   // If a connection attempt is already in progress, wait for it
   if (connectionAttemptInProgress) {
     console.log('Connection attempt already in progress, waiting...');
@@ -48,10 +48,10 @@ async function connectToMongoDB(uri, options = {}) {
       }
     }
   }
-  
+
   // Mark that a connection attempt is in progress
   connectionAttemptInProgress = true;
-  
+
   // Default options
   const defaultOptions = {
     useNewUrlParser: true,
@@ -60,38 +60,42 @@ async function connectToMongoDB(uri, options = {}) {
     socketTimeoutMS: 10000, // Reduced timeout
     connectTimeoutMS: 5000, // Reduced timeout
     retryWrites: true,
-    maxPoolSize: 5, // Reduced pool size
-    autoReconnect: true, // Enable auto reconnect
-    reconnectTries: Number.MAX_VALUE, // Try to reconnect forever
-    reconnectInterval: 1000 // Reconnect every 1 second
+    maxPoolSize: 5 // Reduced pool size
   };
-  
+
   // Merge options
   const connectionOptions = { ...defaultOptions, ...options };
-  
+
   try {
     // Connect to MongoDB with a timeout
-    const connectionPromise = mongoose.connect(uri, connectionOptions);
-    
+    const connectionPromise = async () => {
+      try {
+        return await mongoose.connect(uri, connectionOptions);
+      } catch (error) {
+        console.error('Error in mongoose.connect:', error);
+        throw error;
+      }
+    };
+
     // Add a timeout to the connection promise
     const timeoutPromise = new Promise((_, reject) => {
       setTimeout(() => {
         reject(new Error('MongoDB connection timeout'));
       }, 5000); // 5 second timeout
     });
-    
+
     // Race the connection promise against the timeout
-    const connection = await Promise.race([connectionPromise, timeoutPromise]);
-    
+    const connection = await Promise.race([connectionPromise(), timeoutPromise]);
+
     // Cache the connection
     cachedConnection = connection;
-    
+
     // Set up event handlers
     mongoose.connection.on('error', (err) => {
       console.error('MongoDB connection error:', err);
       cachedConnection = null;
       connectionAttemptInProgress = false;
-      
+
       // Try to reconnect after a delay
       setTimeout(() => {
         console.log('Attempting to reconnect to MongoDB...');
@@ -100,12 +104,12 @@ async function connectToMongoDB(uri, options = {}) {
         });
       }, 5000);
     });
-    
+
     mongoose.connection.on('disconnected', () => {
       console.warn('MongoDB disconnected');
       cachedConnection = null;
       connectionAttemptInProgress = false;
-      
+
       // Try to reconnect after a delay
       setTimeout(() => {
         console.log('Attempting to reconnect to MongoDB...');
@@ -114,28 +118,28 @@ async function connectToMongoDB(uri, options = {}) {
         });
       }, 5000);
     });
-    
+
     mongoose.connection.on('connected', () => {
       console.log('MongoDB connected');
       connectionAttemptInProgress = false;
     });
-    
+
     // Create indexes in the background
     setTimeout(() => {
       createIndexes(mongoose.connection.db)
         .then(() => console.log('MongoDB indexes created'))
         .catch(err => console.error('Error creating MongoDB indexes:', err));
     }, 100);
-    
+
     console.log('Connected to MongoDB');
     connectionAttemptInProgress = false;
-    
+
     return connection;
   } catch (error) {
     console.error('Error connecting to MongoDB:', error);
     cachedConnection = null;
     connectionAttemptInProgress = false;
-    
+
     // Return a mock connection for fallback
     return {
       connection: {
@@ -181,9 +185,9 @@ function getConnectionStatus() {
     3: 'disconnecting',
     99: 'uninitialized'
   };
-  
+
   const readyState = mongoose.connection.readyState;
-  
+
   return {
     status: states[readyState] || 'unknown',
     readyState: readyState,
@@ -215,18 +219,37 @@ async function autoConnect() {
   if (autoConnectInitiated) {
     return cachedConnection;
   }
-  
+
   autoConnectInitiated = true;
   console.log('Auto-connecting to MongoDB...');
-  
+
   try {
     // Get MongoDB URI from environment variables
     const uri = process.env.MONGODB_URI || 'mongodb://localhost:27017/blackhole';
-    
-    // Connect to MongoDB
-    const connection = await connectToMongoDB(uri);
-    
-    console.log('Auto-connection to MongoDB successful');
+
+    console.log('Using MongoDB URI:', uri ? 'URI is set' : 'Using default URI');
+
+    // Connect to MongoDB with a timeout
+    const connectionPromise = connectToMongoDB(uri);
+    const timeoutPromise = new Promise((_, reject) => {
+      setTimeout(() => {
+        reject(new Error('Auto-connection timeout'));
+      }, 5000); // 5 second timeout
+    });
+
+    // Race the connection promise against the timeout
+    const connection = await Promise.race([connectionPromise, timeoutPromise])
+      .catch(error => {
+        console.error('Auto-connection failed:', error.message);
+        return null;
+      });
+
+    if (connection) {
+      console.log('Auto-connection to MongoDB successful');
+    } else {
+      console.warn('Auto-connection to MongoDB failed, using mock connection');
+    }
+
     return connection;
   } catch (error) {
     console.error('Auto-connection to MongoDB failed:', error);

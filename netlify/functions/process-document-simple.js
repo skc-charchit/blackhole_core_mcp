@@ -361,7 +361,19 @@ exports.handler = async function(event, context) {
       console.log('Saving document to MongoDB...');
 
       // Set a timeout for the MongoDB save operation
-      const savePromise = saveToMongoDB(result);
+      const savePromise = async () => {
+        try {
+          return await saveToMongoDB(result);
+        } catch (error) {
+          console.error('Error in saveToMongoDB:', error);
+          return {
+            success: false,
+            error: error.message,
+            mongodb_id: generateMongoDBId()
+          };
+        }
+      };
+
       const saveTimeoutPromise = new Promise(resolve => {
         setTimeout(() => {
           resolve({
@@ -373,7 +385,7 @@ exports.handler = async function(event, context) {
       });
 
       // Race the save operation against the timeout
-      const saveResult = await Promise.race([savePromise, saveTimeoutPromise]);
+      const saveResult = await Promise.race([savePromise(), saveTimeoutPromise]);
 
       // Update the result with the MongoDB ID
       if (saveResult.success) {

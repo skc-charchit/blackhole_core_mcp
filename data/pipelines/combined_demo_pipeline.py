@@ -21,7 +21,7 @@ def run_pipeline():
     print("\n🖼️ Extracted Text from Image:\n", extracted_text_img)
 
     # Process PDF
-    pdf_path = r"data/multimodal/mathbook.pdf"
+    pdf_path = r"data/multimodal/stats.pdf"
     extracted_text_pdf = pdf_reader.extract_text_from_pdf(pdf_path, include_page_numbers=True, verbose=True)
     print("\n📄 Extracted Text from PDF:\n", extracted_text_pdf)
 

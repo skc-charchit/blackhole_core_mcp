@@ -8,9 +8,9 @@ def test_pdf_reader():
     # Try to find a sample PDF
     current_dir = os.path.dirname(os.path.abspath(__file__))
     sample_paths = [
-        os.path.join(current_dir, "mathbook.pdf"),
-        os.path.join(current_dir, "..", "mathbook.pdf"),
-        os.path.join(current_dir, "..", "..", "mathbook.pdf")
+        os.path.join(current_dir, "stats.pdf"),
+        os.path.join(current_dir, "..", "stats.pdf"),
+        os.path.join(current_dir, "..", "..", "stats.pdf")
     ]
     
     pdf_path = None

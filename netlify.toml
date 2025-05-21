@@ -18,6 +18,21 @@
   status = 200
 
 [[redirects]]
+  from = "/api/process-document"
+  to = "/.netlify/functions/process-document"
+  status = 200
+
+[[redirects]]
+  from = "/api/search"
+  to = "/.netlify/functions/search"
+  status = 200
+
+[[redirects]]
+  from = "/api/live-data"
+  to = "/.netlify/functions/live-data"
+  status = 200
+
+[[redirects]]
   from = "/api/process-image"
   to = "/.netlify/functions/process-image"
   status = 200

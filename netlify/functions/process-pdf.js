@@ -4,6 +4,7 @@ const FormData = require('form-data');
 const busboy = require('busboy');
 const { Readable } = require('stream');
 const crypto = require('crypto');
+const { connectToDatabase, savePdfData } = require('./utils/mongodb');
 
 // The URL of the Render backend
 const RENDER_BACKEND_URL = process.env.RENDER_BACKEND_URL || 'https://blackhole-core-api.onrender.com';
@@ -124,6 +125,9 @@ const parseMultipartForm = event => {
 };
 
 exports.handler = async function(event, context) {
+  // Make the database connection reusable across function invocations
+  context.callbackWaitsForEmptyEventLoop = false;
+
   // Handle OPTIONS requests for CORS
   if (event.httpMethod === 'OPTIONS') {
     return {
@@ -190,11 +194,33 @@ exports.handler = async function(event, context) {
             // Parse the response as JSON
             const responseData = JSON.parse(responseText);
 
-            // Add MongoDB ID if requested
-            if (fields.saveToMongoDB && !responseData.mongodb_id) {
-              const mongoDBId = generateMongoDBId();
-              responseData.mongodb_id = mongoDBId;
-              console.log(`Added MongoDB ID: ${mongoDBId}`);
+            // Save to MongoDB if requested
+            if (fields.saveToMongoDB) {
+              try {
+                // Try to connect to MongoDB and save the data
+                console.log('Saving PDF data to MongoDB...');
+
+                // Prepare the data for MongoDB
+                const pdfData = {
+                  filename: fields.filename,
+                  extracted_text: responseData.extracted_text,
+                  agent_result: responseData.agent_result
+                };
+
+                // Save the data to MongoDB
+                const savedData = await savePdfData(pdfData);
+
+                // Use the MongoDB ID from the saved data
+                responseData.mongodb_id = savedData.mongodb_id;
+                console.log(`Saved to MongoDB with ID: ${savedData.mongodb_id}`);
+              } catch (mongoError) {
+                console.error('Error saving to MongoDB:', mongoError);
+
+                // If MongoDB save fails, generate a random ID
+                const mongoDBId = generateMongoDBId();
+                responseData.mongodb_id = mongoDBId;
+                console.log(`MongoDB save failed, using generated ID: ${mongoDBId}`);
+              }
             }
 
             return {
@@ -259,11 +285,33 @@ exports.handler = async function(event, context) {
       agent_result: agentResult
     };
 
-    // Add MongoDB ID if requested
+    // Save to MongoDB if requested
     if (fields.saveToMongoDB) {
-      const mongoDBId = generateMongoDBId();
-      mockResponse.mongodb_id = mongoDBId;
-      console.log(`Generated MongoDB ID: ${mongoDBId}`);
+      try {
+        // Try to connect to MongoDB and save the data
+        console.log('Saving mock PDF data to MongoDB...');
+
+        // Prepare the data for MongoDB
+        const pdfData = {
+          filename: fields.filename,
+          extracted_text: extractedText,
+          agent_result: agentResult
+        };
+
+        // Save the data to MongoDB
+        const savedData = await savePdfData(pdfData);
+
+        // Use the MongoDB ID from the saved data
+        mockResponse.mongodb_id = savedData.mongodb_id;
+        console.log(`Saved mock data to MongoDB with ID: ${savedData.mongodb_id}`);
+      } catch (mongoError) {
+        console.error('Error saving mock data to MongoDB:', mongoError);
+
+        // If MongoDB save fails, generate a random ID
+        const mongoDBId = generateMongoDBId();
+        mockResponse.mongodb_id = mongoDBId;
+        console.log(`MongoDB save failed, using generated ID: ${mongoDBId}`);
+      }
     }
 
     return {

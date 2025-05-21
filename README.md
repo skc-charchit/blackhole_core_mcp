@@ -90,11 +90,8 @@ project_root/
 
 ## Environment Setup
 
-1. Copy the example environment file or create a new `.env` file:
+1. Create a new `.env` file:
    ```bash
-   # If .env.example exists
-   cp .env.example .env
-   # Otherwise create a new file
    touch .env
    ```
 
@@ -233,19 +230,64 @@ This project is configured for deployment with the backend on Render and the fro
 2. Log in to Netlify and click "New site from Git".
 
 3. Select your repository and configure the deployment settings:
-   - Build command: `node update_env.js`
+   - Build command: `npm install && node update_env.js`
    - Publish directory: `public`
 
 4. Click "Deploy site".
 
 5. After deployment, go to Site settings > Build & deploy > Environment variables and add:
    - `RENDER_BACKEND_URL`: Your Render backend URL (e.g., https://blackhole-core-api.onrender.com)
+   - `MONGODB_URI`: Your MongoDB connection string (e.g., mongodb+srv://username:password@cluster.mongodb.net/blackhole)
+
+   Note: These values are automatically read from your `.env` file during local development
 
 6. Trigger a new deployment for the environment variables to take effect.
 
 7. Your frontend will be accessible at the Netlify URL (e.g., https://blackholebody.netlify.app).
 
 8. The frontend is automatically configured to use the Netlify proxy to avoid CORS issues.
+
+#### MongoDB Setup for Netlify Deployment
+
+For the MongoDB connection to work properly with Netlify Functions:
+
+1. **Create a MongoDB Atlas Account**:
+   - Sign up at [MongoDB Atlas](https://www.mongodb.com/cloud/atlas)
+   - Create a new cluster (the free tier is sufficient for testing)
+
+2. **Configure Network Access**:
+   - In MongoDB Atlas, go to Network Access
+   - Add IP Address: `0.0.0.0/0` (to allow access from anywhere, including Netlify)
+   - Or for better security, add Netlify's IP ranges
+
+3. **Create a Database User**:
+   - In MongoDB Atlas, go to Database Access
+   - Add a new database user with read/write permissions
+   - Save the username and password for your connection string
+
+4. **Get Your Connection String**:
+   - In MongoDB Atlas, click "Connect" on your cluster
+   - Choose "Connect your application"
+   - Select Node.js as the driver
+   - Copy the connection string
+   - Replace `<password>` with your database user's password
+   - Add the database name at the end of the URI (e.g., `/blackhole?retryWrites=true&w=majority`)
+
+5. **Add to Netlify Environment Variables**:
+   - Go to your Netlify site's dashboard
+   - Navigate to Site settings > Build & deploy > Environment variables
+   - Add a new variable named `MONGODB_URI` with your connection string
+
+6. **Test the Connection**:
+   - After deployment, visit your site
+   - Click "Test Backend Connection" to verify MongoDB connectivity
+   - For more detailed diagnostics, visit the MongoDB Test Page at `/mongodb-test.html`
+
+7. **Troubleshooting**:
+   - If the connection fails, check the Netlify function logs in the Netlify dashboard
+   - Verify that your connection string is correctly formatted
+   - Ensure your database user has the correct permissions
+   - Check that your IP whitelist includes Netlify's IPs or is set to allow all (`0.0.0.0/0`)
 
 #### How the Proxy Works
 
@@ -257,6 +299,25 @@ The Netlify proxy works as follows:
 4. The proxy function returns the response from the Render backend to the frontend
 
 This approach avoids CORS issues because the frontend is making requests to the same domain (Netlify) rather than directly to the Render backend.
+
+#### MongoDB Integration with Netlify Functions
+
+The application now includes direct MongoDB integration through Netlify Functions:
+
+1. **PDF Processing with MongoDB Storage**:
+   - When you upload PDFs, the extracted text and agent results are stored in MongoDB
+   - Each PDF gets a unique MongoDB ID for reference
+   - The data is stored even when the Render backend is unavailable
+
+2. **MongoDB Status Checking**:
+   - The application includes a MongoDB status endpoint
+   - You can check the connection status on the main page
+   - A detailed MongoDB test page is available at `/mongodb-test.html`
+
+3. **Fallback Mechanisms**:
+   - If MongoDB is unavailable, the application falls back to local storage
+   - All functionality continues to work, but data is not persisted
+   - When MongoDB becomes available again, storage automatically resumes
 
 ## Modules
 

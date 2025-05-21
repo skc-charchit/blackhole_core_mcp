@@ -645,45 +645,75 @@
                         const testData = await testResponse.json();
                         console.log('Netlify functions are working:', testData);
 
-                        // Now try the mock endpoints
+                        // Check MongoDB status
                         try {
-                            const mockResponse = await fetch('/.netlify/functions/mock-image', {
-                                method: 'POST',
-                                headers: {
-                                    'Content-Type': 'application/json',
-                                    'Accept': 'application/json'
-                                },
-                                body: JSON.stringify({ test: true })
-                            });
+                            const mongodbResponse = await fetch('/api/mongodb-status');
+                            const mongodbData = await mongodbResponse.json();
+                            console.log('MongoDB status:', mongodbData);
 
-                            if (mockResponse.ok) {
-                                resultDiv.innerHTML = `
-                                    <div class="alert alert-success">
-                                        <h5>✅ Connection Successful!</h5>
-                                        <p>The application is working in standalone mode with mock endpoints.</p>
-                                        <p>You can process images and PDFs without requiring external dependencies.</p>
-                                    </div>
-                                `;
-                                backendAvailable = true;
-                            } else {
-                                // Mock endpoint not working, but Netlify functions are
+                            const mongodbStatus = mongodbData.mongodb === 'connected' ?
+                                '✅ MongoDB Connected' :
+                                '⚠️ MongoDB Disconnected (using local fallback)';
+
+                            // Now try the mock endpoints
+                            try {
+                                const mockResponse = await fetch('/.netlify/functions/mock-image', {
+                                    method: 'POST',
+                                    headers: {
+                                        'Content-Type': 'application/json',
+                                        'Accept': 'application/json'
+                                    },
+                                    body: JSON.stringify({ test: true })
+                                });
+
+                                if (mockResponse.ok) {
+                                    resultDiv.innerHTML = `
+                                        <div class="alert alert-success">
+                                            <h5>✅ Connection Successful!</h5>
+                                            <p>The application is working in standalone mode with mock endpoints.</p>
+                                            <p>${mongodbStatus}</p>
+                                            <p>You can process images and PDFs without requiring external dependencies.</p>
+                                            <p><a href="mongodb-test.html" target="_blank" class="btn btn-sm btn-outline-primary">MongoDB Test Page</a></p>
+                                        </div>
+                                    `;
+                                    backendAvailable = true;
+                                } else {
+                                    // Mock endpoint not working, but Netlify functions are
+                                    resultDiv.innerHTML = `
+                                        <div class="alert alert-warning">
+                                            <h5>⚠️ Partial Connection</h5>
+                                            <p>Netlify functions are working, but the mock endpoints are not responding correctly.</p>
+                                            <p>${mongodbStatus}</p>
+                                            <p>Basic functionality should work, but some features may be limited.</p>
+                                            <p><a href="mongodb-test.html" target="_blank" class="btn btn-sm btn-outline-primary">MongoDB Test Page</a></p>
+                                        </div>
+                                    `;
+                                    backendAvailable = true; // Still mark as available since basic functions work
+                                }
+                            } catch (mockError) {
+                                // Mock endpoint error, but Netlify functions are working
+                                console.error('Error with mock endpoints:', mockError);
                                 resultDiv.innerHTML = `
                                     <div class="alert alert-warning">
                                         <h5>⚠️ Partial Connection</h5>
-                                        <p>Netlify functions are working, but the mock endpoints are not responding correctly.</p>
+                                        <p>Netlify functions are working, but there was an error with the mock endpoints.</p>
+                                        <p>${mongodbStatus}</p>
                                         <p>Basic functionality should work, but some features may be limited.</p>
+                                        <p><a href="mongodb-test.html" target="_blank" class="btn btn-sm btn-outline-primary">MongoDB Test Page</a></p>
                                     </div>
                                 `;
                                 backendAvailable = true; // Still mark as available since basic functions work
                             }
-                        } catch (mockError) {
-                            // Mock endpoint error, but Netlify functions are working
-                            console.error('Error with mock endpoints:', mockError);
+                        } catch (mongodbError) {
+                            console.error('Error checking MongoDB status:', mongodbError);
+
+                            // MongoDB status check failed, but Netlify functions are working
                             resultDiv.innerHTML = `
                                 <div class="alert alert-warning">
                                     <h5>⚠️ Partial Connection</h5>
-                                    <p>Netlify functions are working, but there was an error with the mock endpoints.</p>
-                                    <p>Basic functionality should work, but some features may be limited.</p>
+                                    <p>Netlify functions are working, but there was an error checking MongoDB status.</p>
+                                    <p>Basic functionality should work, but MongoDB storage may not be available.</p>
+                                    <p><a href="mongodb-test.html" target="_blank" class="btn btn-sm btn-outline-primary">MongoDB Test Page</a></p>
                                 </div>
                             `;
                             backendAvailable = true; // Still mark as available since basic functions work

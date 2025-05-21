@@ -1,31 +1,52 @@
-import pytesseract
-from PIL import Image, ImageEnhance, ImageFilter, ImageOps, UnidentifiedImageError
-import cv2
-import numpy as np
 import os
+import sys
 import io
 import tempfile
-import sys
 from pathlib import Path
+import numpy as np
+
+# Try to import required libraries with error handling
+try:
+    import pytesseract
+    HAS_TESSERACT = True
+except ImportError:
+    HAS_TESSERACT = False
+    print("⚠️ pytesseract not installed. OCR functionality will be limited.")
+
+try:
+    from PIL import Image, ImageEnhance, ImageFilter, ImageOps, UnidentifiedImageError
+    HAS_PIL = True
+except ImportError:
+    HAS_PIL = False
+    print("⚠️ PIL/Pillow not installed. Image processing will not work.")
+
+try:
+    import cv2
+    HAS_CV2 = True
+except ImportError:
+    HAS_CV2 = False
+    print("⚠️ OpenCV (cv2) not installed. Advanced image processing will not work.")
 
 # Tesseract executable path - try to detect OS and set accordingly
-if sys.platform.startswith('win'):
-    # Windows
-    tesseract_cmd = r'C:\Program Files\Tesseract-OCR\tesseract.exe'
-    if not os.path.exists(tesseract_cmd):
-        tesseract_cmd = r'C:\Program Files (x86)\Tesseract-OCR\tesseract.exe'
-elif sys.platform.startswith('darwin'):
-    # macOS
-    tesseract_cmd = '/usr/local/bin/tesseract'
-else:
-    # Linux/Unix
-    tesseract_cmd = '/usr/bin/tesseract'
+if HAS_TESSERACT:
+    if sys.platform.startswith('win'):
+        # Windows
+        tesseract_cmd = r'C:\Program Files\Tesseract-OCR\tesseract.exe'
+        if not os.path.exists(tesseract_cmd):
+            tesseract_cmd = r'C:\Program Files (x86)\Tesseract-OCR\tesseract.exe'
+    elif sys.platform.startswith('darwin'):
+        # macOS
+        tesseract_cmd = '/usr/local/bin/tesseract'
+    else:
+        # Linux/Unix
+        tesseract_cmd = '/usr/bin/tesseract'
 
-# Set Tesseract path if it exists
-if os.path.exists(tesseract_cmd):
-    pytesseract.pytesseract.tesseract_cmd = tesseract_cmd
-else:
-    print(f"⚠️ Tesseract not found at {tesseract_cmd}. OCR may not work correctly.")
+    # Set Tesseract path if it exists
+    if os.path.exists(tesseract_cmd):
+        pytesseract.pytesseract.tesseract_cmd = tesseract_cmd
+        print(f"✅ Tesseract found at {tesseract_cmd}")
+    else:
+        print(f"⚠️ Tesseract not found at {tesseract_cmd}. OCR may not work correctly.")
 
 def preprocess_image(image_path_or_object, preprocessing_level=2):
     """
@@ -38,6 +59,11 @@ def preprocess_image(image_path_or_object, preprocessing_level=2):
     Returns:
         PIL Image: Processed image ready for OCR
     """
+    # Check if required libraries are available
+    if not HAS_PIL:
+        print("⚠️ PIL/Pillow not installed. Cannot preprocess image.")
+        return image_path_or_object
+
     try:
         # Handle both file paths and PIL Image objects
         if isinstance(image_path_or_object, str):
@@ -57,8 +83,21 @@ def preprocess_image(image_path_or_object, preprocessing_level=2):
         # Basic preprocessing for all levels
         gray_image = image.convert("L")
 
-        if preprocessing_level >= 2:
-            # Standard preprocessing
+        # If OpenCV is not available, return the grayscale image
+        if not HAS_CV2 and preprocessing_level >= 2:
+            print("⚠️ OpenCV not available. Using basic preprocessing only.")
+            # Apply basic PIL enhancements instead
+            enhancer = ImageEnhance.Contrast(gray_image)
+            result = enhancer.enhance(2)
+
+            # Apply sharpening if aggressive preprocessing is requested
+            if preprocessing_level >= 3:
+                result = result.filter(ImageFilter.SHARPEN)
+
+            return result
+
+        if preprocessing_level >= 2 and HAS_CV2:
+            # Standard preprocessing with OpenCV
             enhancer = ImageEnhance.Contrast(gray_image)
             enhanced_image = enhancer.enhance(2)
 
@@ -81,7 +120,7 @@ def preprocess_image(image_path_or_object, preprocessing_level=2):
             # Minimal preprocessing
             result = gray_image
 
-        if preprocessing_level >= 3:
+        if preprocessing_level >= 3 and HAS_CV2:
             # Aggressive preprocessing
             # Convert back to PIL for additional processing
             result = Image.fromarray(processed_image)
@@ -113,8 +152,11 @@ def preprocess_image(image_path_or_object, preprocessing_level=2):
     except Exception as e:
         print(f"⚠️ Image preprocessing error: {str(e)}")
         # Return original image if preprocessing fails
-        if isinstance(image_path_or_object, str):
-            return Image.open(image_path_or_object)
+        if isinstance(image_path_or_object, str) and HAS_PIL:
+            try:
+                return Image.open(image_path_or_object)
+            except:
+                print(f"⚠️ Could not open image: {image_path_or_object}")
         return image_path_or_object
 
 def repair_image(image_path):
@@ -280,6 +322,13 @@ def extract_text_from_image(image_path, debug=False, preprocessing_level=2, try_
     Returns:
         str: Extracted text or error message
     """
+    # Check if required libraries are available
+    if not HAS_TESSERACT:
+        return "❌ Tesseract OCR is not installed. Cannot extract text from images."
+
+    if not HAS_PIL:
+        return "❌ PIL/Pillow is not installed. Cannot process images."
+
     # Expanded list of supported formats
     supported_formats = ('.png', '.jpg', '.jpeg', '.bmp', '.tiff', '.tif', '.webp', '.gif', '.heic', '.heif')
 
@@ -313,29 +362,30 @@ def extract_text_from_image(image_path, debug=False, preprocessing_level=2, try_
                     print(f"✅ Image repaired successfully")
                 else:
                     # If repair failed, create a blank image with error message
-                    temp_dir = tempfile.gettempdir()
-                    error_img_path = os.path.join(temp_dir, "error_image.png")
-                    blank_img = np.ones((300, 500, 3), np.uint8) * 255  # White background
-                    # Add error text
-                    cv2.putText(
-                        blank_img,
-                        "Image could not be processed",
-                        (50, 150),
-                        cv2.FONT_HERSHEY_SIMPLEX,
-                        1,
-                        (0, 0, 255),
-                        2
-                    )
-                    cv2.imwrite(error_img_path, blank_img)
-                    working_path = error_img_path
-                    print(f"⚠️ Created error image at {error_img_path}")
+                    if HAS_CV2:
+                        temp_dir = tempfile.gettempdir()
+                        error_img_path = os.path.join(temp_dir, "error_image.png")
+                        blank_img = np.ones((300, 500, 3), np.uint8) * 255  # White background
+                        # Add error text
+                        cv2.putText(
+                            blank_img,
+                            "Image could not be processed",
+                            (50, 150),
+                            cv2.FONT_HERSHEY_SIMPLEX,
+                            1,
+                            (0, 0, 255),
+                            2
+                        )
+                        cv2.imwrite(error_img_path, blank_img)
+                        working_path = error_img_path
+                        print(f"⚠️ Created error image at {error_img_path}")
                     # Return error message
                     return f"❌ Error: cannot identify image file '{image_path}'. Repair attempts failed."
 
         # First attempt with standard preprocessing
         processed_image = preprocess_image(working_path, preprocessing_level=preprocessing_level)
 
-        if debug:
+        if debug and HAS_PIL:
             debug_path = os.path.splitext(working_path)[0] + "_preprocessed.png"
             processed_image.save(debug_path)
             print(f"📄 Preprocessed image saved at: {debug_path}")
@@ -355,7 +405,7 @@ def extract_text_from_image(image_path, debug=False, preprocessing_level=2, try_
 
                 alt_processed = preprocess_image(working_path, preprocessing_level=level)
 
-                if debug:
+                if debug and HAS_PIL:
                     alt_debug_path = os.path.splitext(working_path)[0] + f"_preprocessed_level{level}.png"
                     alt_processed.save(alt_debug_path)
 
@@ -369,7 +419,7 @@ def extract_text_from_image(image_path, debug=False, preprocessing_level=2, try_
                         text = alt_text
 
             # If still no good results, try inverting the image
-            if not text or len(text.strip()) < 10:
+            if (not text or len(text.strip()) < 10) and HAS_PIL:
                 try:
                     with Image.open(working_path) as img:
                         inverted_image = ImageOps.invert(img.convert('RGB'))
@@ -387,7 +437,7 @@ def extract_text_from_image(image_path, debug=False, preprocessing_level=2, try_
                     print(f"⚠️ Error inverting image: {str(e)}")
 
             # If we still have no text, try one more approach with OpenCV
-            if not text or len(text.strip()) < 10:
+            if (not text or len(text.strip()) < 10) and HAS_CV2:
                 try:
                     print("⚠️ Still no text. Trying OpenCV approach...")
                     # Read image with OpenCV

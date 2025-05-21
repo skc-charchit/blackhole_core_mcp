@@ -14,6 +14,25 @@ try:
 except ImportError:
     HAS_OCR = False
 
+# Set Tesseract path based on OS
+if sys.platform.startswith('win'):
+    # Windows
+    tesseract_cmd = r'C:\Program Files\Tesseract-OCR\tesseract.exe'
+    if not os.path.exists(tesseract_cmd):
+        tesseract_cmd = r'C:\Program Files (x86)\Tesseract-OCR\tesseract.exe'
+    if os.path.exists(tesseract_cmd) and HAS_OCR:
+        pytesseract.pytesseract.tesseract_cmd = tesseract_cmd
+elif sys.platform.startswith('darwin'):
+    # macOS
+    tesseract_cmd = '/usr/local/bin/tesseract'
+    if os.path.exists(tesseract_cmd) and HAS_OCR:
+        pytesseract.pytesseract.tesseract_cmd = tesseract_cmd
+else:
+    # Linux/Unix
+    tesseract_cmd = '/usr/bin/tesseract'
+    if os.path.exists(tesseract_cmd) and HAS_OCR:
+        pytesseract.pytesseract.tesseract_cmd = tesseract_cmd
+
 def extract_text_from_pdf(pdf_path, include_page_numbers=True, verbose=True, try_ocr=True):
     """
     Extract text from a PDF file with enhanced capabilities.
@@ -76,28 +95,37 @@ def extract_text_from_pdf(pdf_path, include_page_numbers=True, verbose=True, try
 
             ocr_text = ""
 
-            # Process each page with OCR
-            for page_number, page in enumerate(reader.pages, start=1):
-                if verbose:
-                    print(f"🔍 Processing page {page_number} with OCR...")
+            try:
+                # Import pdf2image here to avoid import errors if it's not installed
+                from pdf2image import convert_from_path
 
-                try:
-                    # Extract the page as an image
-                    from pdf2image import convert_from_path
-                    images = convert_from_path(pdf_path, first_page=page_number, last_page=page_number)
-
-                    if images:
-                        # Process the image with OCR
-                        page_text = pytesseract.image_to_string(images[0])
-
-                        if page_text:
-                            if include_page_numbers:
-                                ocr_text += f"\n--- Page {page_number} (OCR) ---\n{page_text}\n"
-                            else:
-                                ocr_text += f"{page_text}\n"
-                except Exception as ocr_err:
+                # Process each page with OCR
+                for page_number, page in enumerate(reader.pages, start=1):
                     if verbose:
-                        print(f"⚠️ OCR failed for page {page_number}: {str(ocr_err)}")
+                        print(f"🔍 Processing page {page_number} with OCR...")
+
+                    try:
+                        # Extract the page as an image
+                        images = convert_from_path(pdf_path, first_page=page_number, last_page=page_number)
+
+                        if images:
+                            # Process the image with OCR
+                            page_text = pytesseract.image_to_string(images[0])
+
+                            if page_text:
+                                if include_page_numbers:
+                                    ocr_text += f"\n--- Page {page_number} (OCR) ---\n{page_text}\n"
+                                else:
+                                    ocr_text += f"{page_text}\n"
+                    except Exception as ocr_err:
+                        if verbose:
+                            print(f"⚠️ OCR failed for page {page_number}: {str(ocr_err)}")
+            except ImportError:
+                if verbose:
+                    print("⚠️ pdf2image module not found. OCR processing requires pdf2image.")
+            except Exception as e:
+                if verbose:
+                    print(f"⚠️ OCR processing failed: {str(e)}")
 
             # If OCR found text, use it
             if ocr_text.strip():

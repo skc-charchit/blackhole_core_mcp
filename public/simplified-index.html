@@ -1,0 +1,332 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BlackHole - Backend Testing</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            padding-top: 2rem;
+            background-color: #f8f9fa;
+        }
+        .header {
+            margin-bottom: 2rem;
+            text-align: center;
+        }
+        .card {
+            margin-bottom: 1.5rem;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        .sidebar {
+            background-color: #f1f1f1;
+            padding: 20px;
+            border-radius: 5px;
+            height: calc(100vh - 100px);
+            overflow-y: auto;
+        }
+        .main-content {
+            padding-left: 20px;
+        }
+        #loading {
+            display: none;
+            text-align: center;
+            margin: 2rem 0;
+        }
+        .spinner-border {
+            width: 3rem;
+            height: 3rem;
+        }
+        pre {
+            background-color: #f8f9fa;
+            padding: 10px;
+            border-radius: 5px;
+            overflow-x: auto;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        .result-item {
+            margin-bottom: 1rem;
+            padding: 1rem;
+            border-radius: 5px;
+            background-color: #f1f1f1;
+        }
+    </style>
+</head>
+<body>
+    <div class="container-fluid">
+        <div class="header">
+            <h1>🚀 BlackHole Backend Testing</h1>
+            <p class="lead">A simplified interface for testing the BlackHole backend</p>
+        </div>
+
+        <div class="row">
+            <!-- Left Sidebar with Text Input -->
+            <div class="col-md-3">
+                <div class="sidebar">
+                    <h4>Backend Testing</h4>
+                    <div class="mb-3">
+                        <button id="testConnectionBtn" class="btn btn-primary w-100 mb-3">Test Backend Connection</button>
+                        <div id="testConnectionResult" class="mt-2"></div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="testInput" class="form-label">Test Input</label>
+                        <textarea id="testInput" class="form-control" rows="5" placeholder="Enter text to process..."></textarea>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="endpointSelect" class="form-label">Select Endpoint</label>
+                        <select id="endpointSelect" class="form-select">
+                            <option value="process-document">Process Document</option>
+                            <option value="search">Search</option>
+                            <option value="mongodb-status">MongoDB Status</option>
+                            <option value="live-data">Live Data</option>
+                        </select>
+                    </div>
+                    
+                    <button id="sendRequestBtn" class="btn btn-success w-100">Send Request</button>
+                    
+                    <hr>
+                    
+                    <div class="mb-3">
+                        <h5>File Upload</h5>
+                        <div class="mb-3">
+                            <label for="fileUpload" class="form-label">Upload File</label>
+                            <input class="form-control" type="file" id="fileUpload">
+                        </div>
+                        <div class="form-check mb-3">
+                            <input class="form-check-input" type="checkbox" id="saveToMongoDB" checked>
+                            <label class="form-check-label" for="saveToMongoDB">
+                                Save to MongoDB
+                            </label>
+                        </div>
+                        <button id="processFileBtn" class="btn btn-primary w-100">Process File</button>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Main Content Area -->
+            <div class="col-md-9">
+                <div class="main-content">
+                    <div class="card">
+                        <div class="card-header d-flex justify-content-between align-items-center">
+                            <h5>Results</h5>
+                            <button id="clearResultsBtn" class="btn btn-sm btn-outline-secondary">Clear</button>
+                        </div>
+                        <div class="card-body">
+                            <div id="resultsContainer"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div id="loading">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Loading...</span>
+            </div>
+            <p>Processing your request...</p>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // API base URL - empty string for same origin
+        const API_BASE_URL = '';
+        
+        // Show loading indicator
+        function showLoading() {
+            document.getElementById('loading').style.display = 'block';
+        }
+        
+        // Hide loading indicator
+        function hideLoading() {
+            document.getElementById('loading').style.display = 'none';
+        }
+        
+        // Format JSON for display
+        function formatJSON(json) {
+            return JSON.stringify(json, null, 2);
+        }
+        
+        // Add a result to the results container
+        function addResult(title, content, isError = false) {
+            const resultsContainer = document.getElementById('resultsContainer');
+            
+            const resultItem = document.createElement('div');
+            resultItem.className = `result-item ${isError ? 'bg-danger text-white' : ''}`;
+            
+            const timestamp = new Date().toLocaleString();
+            
+            resultItem.innerHTML = `
+                <h6>${title} - ${timestamp}</h6>
+                <pre>${content}</pre>
+            `;
+            
+            resultsContainer.prepend(resultItem);
+        }
+        
+        // Test connection button
+        document.getElementById('testConnectionBtn').addEventListener('click', async function() {
+            const resultDiv = document.getElementById('testConnectionResult');
+            resultDiv.innerHTML = '<div class="alert alert-info">Testing connection...</div>';
+            
+            showLoading();
+            
+            try {
+                // Try the Netlify function directly
+                const response = await fetch('/.netlify/functions/test');
+                const data = await response.json();
+                
+                if (response.ok) {
+                    resultDiv.innerHTML = `<div class="alert alert-success">
+                        Connection successful! MongoDB: ${data.mongodb || 'N/A'}
+                    </div>`;
+                    
+                    addResult('Connection Test', formatJSON(data));
+                } else {
+                    resultDiv.innerHTML = `<div class="alert alert-danger">
+                        Error: ${data.error || 'Unknown error'} (Status: ${response.status})
+                    </div>`;
+                    
+                    addResult('Connection Test Error', formatJSON(data), true);
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `<div class="alert alert-danger">
+                    Connection failed: ${error.message}
+                </div>`;
+                
+                addResult('Connection Test Error', error.message, true);
+            } finally {
+                hideLoading();
+            }
+        });
+        
+        // Send request button
+        document.getElementById('sendRequestBtn').addEventListener('click', async function() {
+            const input = document.getElementById('testInput').value.trim();
+            const endpoint = document.getElementById('endpointSelect').value;
+            
+            if (!input && endpoint !== 'mongodb-status') {
+                alert('Please enter some input text');
+                return;
+            }
+            
+            showLoading();
+            
+            try {
+                let response;
+                let requestBody = {};
+                
+                // Prepare request based on endpoint
+                switch (endpoint) {
+                    case 'search':
+                        requestBody = { query: input };
+                        response = await fetch(`/api/search`, {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json'
+                            },
+                            body: JSON.stringify(requestBody)
+                        });
+                        break;
+                    
+                    case 'mongodb-status':
+                        response = await fetch(`/api/mongodb-status`);
+                        break;
+                    
+                    case 'live-data':
+                        requestBody = { 
+                            source: 'weather',
+                            query: { location: input }
+                        };
+                        response = await fetch(`/api/live-data`, {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json'
+                            },
+                            body: JSON.stringify(requestBody)
+                        });
+                        break;
+                    
+                    default:
+                        // Default to process-document with text input
+                        const formData = new FormData();
+                        formData.append('text', input);
+                        response = await fetch(`/api/process-document`, {
+                            method: 'POST',
+                            body: formData
+                        });
+                }
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    addResult(`${endpoint} Request`, formatJSON(data));
+                } else {
+                    addResult(`${endpoint} Error`, formatJSON(data), true);
+                }
+            } catch (error) {
+                addResult(`${endpoint} Error`, error.message, true);
+            } finally {
+                hideLoading();
+            }
+        });
+        
+        // Process file button
+        document.getElementById('processFileBtn').addEventListener('click', async function() {
+            const fileInput = document.getElementById('fileUpload');
+            const saveToMongoDB = document.getElementById('saveToMongoDB').checked;
+            
+            if (!fileInput.files.length) {
+                alert('Please select a file');
+                return;
+            }
+            
+            const file = fileInput.files[0];
+            const formData = new FormData();
+            formData.append('file', file);
+            formData.append('save_to_mongodb', saveToMongoDB.toString());
+            formData.append('filename', file.name);
+            
+            // Determine document type based on file extension
+            const fileExt = file.name.split('.').pop().toLowerCase();
+            const documentType = fileExt === 'pdf' ? 'pdf' : 'image';
+            formData.append('documentType', documentType);
+            
+            showLoading();
+            
+            try {
+                const response = await fetch('/api/process-document', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    addResult(`File Processing: ${file.name}`, formatJSON(data));
+                } else {
+                    addResult(`File Processing Error: ${file.name}`, formatJSON(data), true);
+                }
+            } catch (error) {
+                addResult(`File Processing Error: ${file.name}`, error.message, true);
+            } finally {
+                hideLoading();
+            }
+        });
+        
+        // Clear results button
+        document.getElementById('clearResultsBtn').addEventListener('click', function() {
+            document.getElementById('resultsContainer').innerHTML = '';
+        });
+        
+        // Initial connection test on page load
+        window.addEventListener('load', function() {
+            document.getElementById('testConnectionBtn').click();
+        });
+    </script>
+</body>
+</html>

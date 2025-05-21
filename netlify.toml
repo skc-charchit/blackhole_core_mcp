@@ -33,17 +33,17 @@
 
 [[redirects]]
   from = "/api/process-document"
-  to = "/.netlify/functions/process-document"
+  to = "/.netlify/functions/process-document-simple"
   status = 200
 
 [[redirects]]
   from = "/api/search"
-  to = "/.netlify/functions/search"
+  to = "/.netlify/functions/search-simple"
   status = 200
 
 [[redirects]]
   from = "/api/live-data"
-  to = "/.netlify/functions/live-data"
+  to = "/.netlify/functions/live-data-simple"
   status = 200
 
 [[redirects]]

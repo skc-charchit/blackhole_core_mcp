@@ -455,34 +455,53 @@
 
             // Set the extracted text
             const extractedTextElement = resultCard.querySelector('.pdf-extracted-text');
-            if (result.error && result.error.includes('Internal Error')) {
+            if (result.error) {
                 extractedTextElement.textContent =
-                    "PDF processing is not available in this environment. The server encountered an internal error " +
-                    "while processing the PDF. This might be due to missing dependencies or resource limitations.";
+                    "PDF processing encountered an issue: " + result.error +
+                    "\nHowever, we've generated a mock response to demonstrate the functionality.";
             } else {
                 extractedTextElement.textContent = result.extracted_text || 'No text extracted';
             }
 
             // Set the agent output
             const agentOutputElement = resultCard.querySelector('.pdf-agent-output');
-            if (result.error && result.error.includes('Internal Error')) {
-                // Create a simple mock agent result
-                const mockAgentResult = {
-                    agent: "ArchiveSearchAgent",
+
+            // Handle different response formats
+            let agentResult = result.agent_result;
+
+            // If agent_result is not available but output is, use that structure
+            if (!agentResult && result.output) {
+                agentResult = {
+                    agent: result.agent || "PDFExtractorAgent",
+                    input: result.input || { file: { name: filename } },
+                    output: result.output,
+                    metadata: result.metadata || {},
+                    timestamp: result.timestamp || new Date().toISOString()
+                };
+            }
+
+            // If still no agent result, create a mock one
+            if (!agentResult) {
+                agentResult = {
+                    agent: "PDFExtractorAgent",
                     input: {
-                        document_text: "PDF processing is not available in this environment."
+                        file: { name: filename }
+                    },
+                    output: {
+                        extracted_text: result.extracted_text || "No text extracted",
+                        analysis: {
+                            summary: "Document processed successfully."
+                        }
                     },
                     metadata: {
-                        source_file: "mock_response.txt",
+                        source_file: filename,
                         processed_at: new Date().toISOString()
                     },
-                    output: "No matches found due to PDF processing limitations.",
                     timestamp: new Date().toISOString()
                 };
-                agentOutputElement.textContent = formatJSON(mockAgentResult);
-            } else {
-                agentOutputElement.textContent = formatJSON(result.agent_result || {});
             }
+
+            agentOutputElement.textContent = formatJSON(agentResult);
 
             // Set the MongoDB ID if available
             const mongoDBIdElement = resultCard.querySelector('.pdf-mongodb-id');
@@ -522,107 +541,103 @@
                 }
             }
 
-            // Try the direct Netlify function first, then the mock endpoint, and finally fall back to the proxy
-            let response;
-            let useLocalMock = false;
-
+            // Try the simplified document processing endpoint first
             try {
-                // First try the direct Netlify function
+                console.log('Using simplified document processing endpoint');
+                const response = await fetch('/api/process-document', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                if (response.ok) {
+                    const responseText = await response.text();
+                    try {
+                        const data = JSON.parse(responseText);
+                        console.log('Document processed successfully with simplified endpoint');
+                        return data;
+                    } catch (e) {
+                        console.error('Invalid JSON response from simplified endpoint:', responseText);
+                        throw new Error(`Invalid JSON response: ${responseText.substring(0, 100)}...`);
+                    }
+                } else {
+                    console.warn('Simplified endpoint returned error status:', response.status);
+                    throw new Error(`Server returned error status: ${response.status}`);
+                }
+            } catch (error) {
+                console.warn('Error using simplified endpoint, falling back to mock PDF:', error);
+
+                // Fall back to mock PDF endpoint
                 try {
-                    response = await fetch('/.netlify/functions/mock-pdf', {
+                    const response = await fetch('/api/mock-pdf', {
                         method: 'POST',
                         body: formData
                     });
-                    console.log('Using direct Netlify function for PDF processing');
-                } catch (directError) {
-                    console.warn('Direct Netlify function failed, trying mock endpoint:', directError);
-                    try {
-                        // Then try the mock endpoint via the redirect
-                        response = await fetch('/api/mock-pdf', {
-                            method: 'POST',
-                            body: formData
-                        });
-                        console.log('Using mock endpoint for PDF processing');
-                    } catch (mockError) {
-                        console.warn('Mock PDF endpoint failed, falling back to proxy:', mockError);
+
+                    if (response.ok) {
+                        const responseText = await response.text();
                         try {
-                            // Finally fall back to the proxy
-                            response = await fetch('/.netlify/functions/proxy/api/process-pdf', {
-                                method: 'POST',
-                                body: formData
-                            });
-                            console.log('Using proxy for PDF processing');
-                        } catch (proxyError) {
-                            console.warn('All remote endpoints failed, using local mock:', proxyError);
-                            useLocalMock = true;
-                        }
-                    }
-                }
-
-                if (!useLocalMock) {
-                    const responseText = await response.text();
-                    let data;
-
-                    try {
-                        data = JSON.parse(responseText);
-                    } catch (e) {
-                        console.error('Invalid JSON response:', responseText);
-                        // If we can't parse the response, check if it contains "Internal Error"
-                        if (responseText.includes('Internal Error')) {
-                            console.warn('Internal error detected in response, using local mock');
-                            useLocalMock = true;
-                        } else {
+                            const data = JSON.parse(responseText);
+                            console.log('Document processed successfully with mock endpoint');
+                            return data;
+                        } catch (e) {
+                            console.error('Invalid JSON response from mock endpoint:', responseText);
                             throw new Error(`Invalid JSON response: ${responseText.substring(0, 100)}...`);
                         }
+                    } else {
+                        console.warn('Mock endpoint returned error status:', response.status);
+                        throw new Error(`Server returned error status: ${response.status}`);
                     }
+                } catch (mockError) {
+                    console.warn('Error using mock endpoint, using local mock:', mockError);
 
-                    if (!useLocalMock) {
-                        if (!response.ok) {
-                            if (data && data.error && data.error.includes('Internal Error')) {
-                                console.warn('Internal error detected in response data, using local mock');
-                                useLocalMock = true;
-                            } else {
-                                throw new Error(data.error || 'Unknown error');
-                            }
-                        } else {
-                            return data;
-                        }
-                    }
-                }
-            } catch (error) {
-                // If the error message contains "Internal Error", use a local mock
-                if (error.message && error.message.includes('Internal Error')) {
-                    console.warn('Internal error detected in error message, using local mock');
-                    useLocalMock = true;
-                } else {
-                    throw error;
-                }
-            }
+                    // Generate a random MongoDB ID
+                    const mongoDBId = Array.from(Array(24), () => Math.floor(Math.random() * 16).toString(16)).join('');
 
-            // If we get here, we need to use a local mock
-            if (useLocalMock) {
-                console.log('Using local mock for PDF processing');
-
-                // Generate a random MongoDB ID
-                const mongoDBId = Array.from(Array(24), () => Math.floor(Math.random() * 16).toString(16)).join('');
-
-                // Create a mock response
-                return {
-                    extracted_text: `This is a locally generated mock response for the PDF file "${filename}". The backend server was unable to process this PDF, but we're providing this mock data so you can see how the application would work with real data. In a production environment, you would see the actual text extracted from the PDF.`,
-                    agent_result: {
-                        agent: "ArchiveSearchAgent",
-                        input: {
-                            document_text: `Mock data for ${filename}`
+                    // Create a local mock response
+                    return {
+                        extracted_text: `This is a locally generated mock response for the PDF file "${filename}". The backend server was unable to process this PDF, but we're providing this mock data so you can see how the application would work with real data. In a production environment, you would see the actual text extracted from the PDF.`,
+                        agent_result: {
+                            agent: "PDFExtractorAgent",
+                            input: {
+                                file: {
+                                    name: filename
+                                }
+                            },
+                            output: {
+                                extracted_text: `This is mock extracted text from the PDF file "${filename}". In a real application, this would contain the actual text extracted from the PDF document.`,
+                                structured_data: {
+                                    tables: [
+                                        {
+                                            title: "Sample Table",
+                                            headers: ["ID", "Name", "Value"],
+                                            rows: [
+                                                ["1", "Item 1", "100"],
+                                                ["2", "Item 2", "200"],
+                                                ["3", "Item 3", "300"]
+                                            ]
+                                        }
+                                    ]
+                                },
+                                metadata: {
+                                    title: filename,
+                                    author: "System",
+                                    pageCount: 3
+                                },
+                                analysis: {
+                                    summary: "This document contains sample text and data.",
+                                    language: "en",
+                                    wordCount: 50
+                                }
+                            },
+                            metadata: {
+                                source_file: filename,
+                                processed_at: new Date().toISOString()
+                            },
+                            timestamp: new Date().toISOString()
                         },
-                        metadata: {
-                            source_file: filename,
-                            processed_at: new Date().toISOString()
-                        },
-                        output: "This is a mock response generated locally because the backend server encountered an error. No matches found in the archive.",
-                        timestamp: new Date().toISOString()
-                    },
-                    mongodb_id: mongoDBId
-                };
+                        mongodb_id: mongoDBId
+                    };
+                }
             }
         }
 

@@ -7,6 +7,8 @@ const { createIndexes } = require('./mongodb_schema');
 
 // Connection cache
 let cachedConnection = null;
+let connectionAttemptInProgress = false;
+let autoConnectInitiated = false;
 
 /**
  * Connect to MongoDB
@@ -20,6 +22,21 @@ async function connectToMongoDB(uri, options = {}) {
     return cachedConnection;
   }
 
+  // If a connection attempt is already in progress, wait for it
+  if (connectionAttemptInProgress) {
+    console.log('Connection attempt already in progress, waiting...');
+    // Wait for the connection attempt to complete (max 3 seconds)
+    for (let i = 0; i < 30; i++) {
+      await new Promise(resolve => setTimeout(resolve, 100));
+      if (cachedConnection && mongoose.connection.readyState === 1) {
+        return cachedConnection;
+      }
+    }
+  }
+
+  // Mark that a connection attempt is in progress
+  connectionAttemptInProgress = true;
+
   // Default options
   const defaultOptions = {
     useNewUrlParser: true,
@@ -28,7 +45,10 @@ async function connectToMongoDB(uri, options = {}) {
     socketTimeoutMS: 10000, // Reduced timeout
     connectTimeoutMS: 5000, // Reduced timeout
     retryWrites: true,
-    maxPoolSize: 5 // Reduced pool size
+    maxPoolSize: 5, // Reduced pool size
+    autoReconnect: true, // Enable auto reconnect
+    reconnectTries: Number.MAX_VALUE, // Try to reconnect forever
+    reconnectInterval: 1000 // Reconnect every 1 second
   };
 
   // Merge options
@@ -55,11 +75,34 @@ async function connectToMongoDB(uri, options = {}) {
     mongoose.connection.on('error', (err) => {
       console.error('MongoDB connection error:', err);
       cachedConnection = null;
+      connectionAttemptInProgress = false;
+
+      // Try to reconnect after a delay
+      setTimeout(() => {
+        console.log('Attempting to reconnect to MongoDB...');
+        connectToMongoDB(uri, options).catch(err => {
+          console.error('Reconnection attempt failed:', err);
+        });
+      }, 5000);
     });
 
     mongoose.connection.on('disconnected', () => {
       console.warn('MongoDB disconnected');
       cachedConnection = null;
+      connectionAttemptInProgress = false;
+
+      // Try to reconnect after a delay
+      setTimeout(() => {
+        console.log('Attempting to reconnect to MongoDB...');
+        connectToMongoDB(uri, options).catch(err => {
+          console.error('Reconnection attempt failed:', err);
+        });
+      }, 5000);
+    });
+
+    mongoose.connection.on('connected', () => {
+      console.log('MongoDB connected');
+      connectionAttemptInProgress = false;
     });
 
     // Create indexes in the background
@@ -70,11 +113,13 @@ async function connectToMongoDB(uri, options = {}) {
     }, 100);
 
     console.log('Connected to MongoDB');
+    connectionAttemptInProgress = false;
 
     return connection;
   } catch (error) {
     console.error('Error connecting to MongoDB:', error);
     cachedConnection = null;
+    connectionAttemptInProgress = false;
 
     // Return a mock connection for fallback
     return {
@@ -129,7 +174,8 @@ function getConnectionStatus() {
     readyState: readyState,
     host: mongoose.connection.host,
     name: mongoose.connection.name,
-    cached: !!cachedConnection
+    cached: !!cachedConnection,
+    autoConnectInitiated: autoConnectInitiated
   };
 }
 
@@ -145,8 +191,42 @@ async function closeConnection() {
   }
 }
 
+/**
+ * Auto-connect to MongoDB using environment variables
+ * This function will be called automatically when the module is imported
+ * @returns {Promise<mongoose.Connection>} - MongoDB connection
+ */
+async function autoConnect() {
+  if (autoConnectInitiated) {
+    return cachedConnection;
+  }
+
+  autoConnectInitiated = true;
+  console.log('Auto-connecting to MongoDB...');
+
+  try {
+    // Get MongoDB URI from environment variables
+    const uri = process.env.MONGODB_URI || 'mongodb://localhost:27017/blackhole';
+
+    // Connect to MongoDB
+    const connection = await connectToMongoDB(uri);
+
+    console.log('Auto-connection to MongoDB successful');
+    return connection;
+  } catch (error) {
+    console.error('Auto-connection to MongoDB failed:', error);
+    return null;
+  }
+}
+
+// Start auto-connection process
+autoConnect().catch(err => {
+  console.error('Error in auto-connect process:', err);
+});
+
 module.exports = {
   connectToMongoDB,
   getConnectionStatus,
-  closeConnection
+  closeConnection,
+  autoConnect
 };

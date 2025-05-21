@@ -28,6 +28,16 @@
   status = 200
 
 [[redirects]]
+  from = "/"
+  to = "/index-new.html"
+  status = 200
+
+[[redirects]]
+  from = "/index.html"
+  to = "/index-new.html"
+  status = 200
+
+[[redirects]]
   from = "/*"
   to = "/index.html"
   status = 200

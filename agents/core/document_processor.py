@@ -16,6 +16,13 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(
 
 from agents.base_agent import BaseMCPAgent, AgentCapability, MCPMessage
 
+# MongoDB integration
+try:
+    from mcp_mongodb_integration import MCPMongoDBIntegration
+    MONGODB_AVAILABLE = True
+except ImportError:
+    MONGODB_AVAILABLE = False
+
 # Agent metadata for auto-discovery
 AGENT_METADATA = {
     "id": "document_processor",
@@ -43,6 +50,63 @@ class DocumentProcessorAgent(BaseMCPAgent):
             )
         ]
         super().__init__("document_processor", "Document Processor Agent", capabilities)
+
+        # Initialize MongoDB integration
+        self.mongodb_integration = None
+        if MONGODB_AVAILABLE:
+            try:
+                import asyncio
+                self.mongodb_integration = MCPMongoDBIntegration()
+                asyncio.create_task(self._init_mongodb())
+            except Exception as e:
+                self.logger.error(f"Failed to initialize MongoDB: {e}")
+
+    async def _init_mongodb(self):
+        """Initialize MongoDB connection."""
+        if self.mongodb_integration:
+            try:
+                connected = await self.mongodb_integration.connect()
+                if connected:
+                    self.logger.info("Document Agent connected to MongoDB")
+                else:
+                    self.logger.warning("Document Agent failed to connect to MongoDB")
+            except Exception as e:
+                self.logger.error(f"Document Agent MongoDB initialization error: {e}")
+
+    async def _store_document_result(self, input_data: Dict[str, Any], result: Dict[str, Any]):
+        """Store document processing result in MongoDB with force storage."""
+        if self.mongodb_integration:
+            try:
+                # Primary storage method
+                mongodb_id = await self.mongodb_integration.save_agent_output(
+                    "document_agent",
+                    input_data,
+                    result,
+                    {"storage_type": "document_processing", "processing_type": "document_analysis"}
+                )
+                self.logger.info(f"✅ Document result stored in MongoDB: {mongodb_id}")
+
+                # Also force store as backup
+                await self.mongodb_integration.force_store_result(
+                    "document_agent",
+                    input_data.get("user_input", "document_processing"),
+                    result
+                )
+                self.logger.info("✅ Document result force stored as backup")
+
+            except Exception as e:
+                self.logger.error(f"❌ Failed to store document result: {e}")
+
+                # Try force storage as fallback
+                try:
+                    await self.mongodb_integration.force_store_result(
+                        "document_agent",
+                        input_data.get("user_input", "document_processing"),
+                        result
+                    )
+                    self.logger.info("✅ Document result fallback storage successful")
+                except Exception as e2:
+                    self.logger.error(f"❌ Document result fallback storage failed: {e2}")
 
     async def handle_process(self, message: MCPMessage) -> Dict[str, Any]:
         """Process documents and collaborate with other agents."""
@@ -93,13 +157,18 @@ class DocumentProcessorAgent(BaseMCPAgent):
                 self.log_error(f"Author collaboration error: {e}")
 
         # Default processing
-        return {
+        result = {
             "status": "success",
             "processed_documents": processed_docs,
             "total_documents": len(processed_docs),
             "authors_found": list(set(all_authors)),
             "agent": self.agent_id
         }
+
+        # Store in MongoDB
+        await self._store_document_result(params, result)
+
+        return result
 
     async def process_single_document(self, doc: Dict[str, Any]) -> Dict[str, Any]:
         """Process a single document."""

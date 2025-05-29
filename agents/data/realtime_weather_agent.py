@@ -18,6 +18,13 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(
 
 from agents.base_agent import BaseMCPAgent, AgentCapability, MCPMessage
 
+# MongoDB integration
+try:
+    from mcp_mongodb_integration import MCPMongoDBIntegration
+    MONGODB_AVAILABLE = True
+except ImportError:
+    MONGODB_AVAILABLE = False
+
 class RealTimeWeatherAgent(BaseMCPAgent):
     """Real-time weather agent that fetches live data from OpenWeatherMap API only."""
 
@@ -33,6 +40,16 @@ class RealTimeWeatherAgent(BaseMCPAgent):
         ]
 
         super().__init__("realtime_weather_agent", "Real-Time Weather Agent", capabilities)
+
+        # Initialize MongoDB integration
+        self.mongodb_integration = None
+        if MONGODB_AVAILABLE:
+            try:
+                import asyncio
+                self.mongodb_integration = MCPMongoDBIntegration()
+                asyncio.create_task(self._init_mongodb())
+            except Exception as e:
+                self.logger.error(f"Failed to initialize MongoDB: {e}")
 
         # OpenWeatherMap API configuration from environment
         self.api_key = os.getenv('OPENWEATHER_API_KEY', '').strip()
@@ -113,6 +130,57 @@ class RealTimeWeatherAgent(BaseMCPAgent):
             self.logger.warning("Please set OPENWEATHER_API_KEY in .env file for live weather data")
         else:
             self.logger.info(f"Real-Time Weather Agent initialized with API key: {self.api_key[:8]}...")
+
+    async def _init_mongodb(self):
+        """Initialize MongoDB connection."""
+        if self.mongodb_integration:
+            try:
+                connected = await self.mongodb_integration.connect()
+                if connected:
+                    self.logger.info("Weather Agent connected to MongoDB")
+                else:
+                    self.logger.warning("Weather Agent failed to connect to MongoDB")
+            except Exception as e:
+                self.logger.error(f"Weather Agent MongoDB initialization error: {e}")
+
+    async def _store_weather_data(self, query: str, city: str, weather_data: Dict[str, Any], result: Dict[str, Any]):
+        """Store weather data in MongoDB with force storage."""
+        if self.mongodb_integration:
+            try:
+                # Primary storage method
+                mongodb_id = await self.mongodb_integration.save_agent_output(
+                    "weather_agent",
+                    {"query": query, "city": city, "type": "weather_request"},
+                    result,
+                    {
+                        "weather_data": weather_data,
+                        "storage_type": "weather_data",
+                        "api_source": "openweathermap"
+                    }
+                )
+                self.logger.info(f"✅ Weather data stored in MongoDB: {mongodb_id}")
+
+                # Also force store as backup
+                await self.mongodb_integration.force_store_result(
+                    "weather_agent",
+                    query,
+                    result
+                )
+                self.logger.info("✅ Weather data force stored as backup")
+
+            except Exception as e:
+                self.logger.error(f"❌ Failed to store weather data: {e}")
+
+                # Try force storage as fallback
+                try:
+                    await self.mongodb_integration.force_store_result(
+                        "weather_agent",
+                        query,
+                        result
+                    )
+                    self.logger.info("✅ Weather data fallback storage successful")
+                except Exception as e2:
+                    self.logger.error(f"❌ Weather data fallback storage failed: {e2}")
 
     def extract_city_name(self, query: str) -> Optional[str]:
         """Extract city name from user query with improved accuracy."""
@@ -211,7 +279,7 @@ class RealTimeWeatherAgent(BaseMCPAgent):
                 # Format the response
                 formatted_response = self.format_weather_response(weather_data["data"], city, query)
 
-                return {
+                result = {
                     "status": "success",
                     "city": weather_data["data"]["city"],
                     "country": weather_data["data"]["country"],
@@ -222,6 +290,11 @@ class RealTimeWeatherAgent(BaseMCPAgent):
                     "agent": self.agent_id,
                     "timestamp": datetime.now().isoformat()
                 }
+
+                # Store in MongoDB
+                await self._store_weather_data(query, city, weather_data["data"], result)
+
+                return result
             else:
                 return weather_data
 

@@ -1,0 +1,390 @@
+{
+  "server_health": {
+    "status": "healthy",
+    "data": {
+      "status": "ok",
+      "ready": true,
+      "system": {
+        "server": "production_mcp_server",
+        "version": "2.0.0",
+        "timestamp": "2025-05-29T18:31:50.009186",
+        "loaded_agents": 3,
+        "failed_agents": 0,
+        "total_discovered": 7,
+        "last_discovery_scan": "2025-05-29T18:30:50.328387",
+        "agent_folders": {
+          "live": "agents\\live",
+          "inactive": "agents\\inactive",
+          "future": "agents\\future",
+          "templates": "agents\\templates"
+        },
+        "server_config": {
+          "health_check_interval": 30,
+          "agent_discovery_interval": 60,
+          "max_agent_failures": 3,
+          "agent_recovery_timeout": 120,
+          "auto_recovery_enabled": true,
+          "hot_swap_enabled": true
+        },
+        "mongodb_available": true,
+        "inter_agent_available": true
+      },
+      "agent_health": {
+        "document_agent": {
+          "status": "healthy",
+          "last_check": "2025-05-29T18:31:22.458635",
+          "failure_count": 0,
+          "details": {
+            "agent_id": "document_agent",
+            "status": "healthy",
+            "last_check": "2025-05-29T18:31:22.458635",
+            "failure_count": 0,
+            "mongodb_connected": true,
+            "uptime": 32.170992,
+            "test_processing": "success",
+            "version": "2.0.0"
+          }
+        },
+        "math_agent": {
+          "status": "healthy",
+          "last_check": "2025-05-29T18:31:22.458990",
+          "failure_count": 0,
+          "details": {
+            "agent_id": "math_agent",
+            "status": "healthy",
+            "last_check": "2025-05-29T18:31:22.458990",
+            "failure_count": 0,
+            "mongodb_connected": true,
+            "uptime": 32.153425,
+            "test_calculation": 4.0,
+            "version": "2.0.0"
+          }
+        },
+        "weather_agent": {
+          "status": "healthy",
+          "last_check": "2025-05-29T18:31:22.509683",
+          "failure_count": 0,
+          "details": {
+            "agent_id": "weather_agent",
+            "status": "healthy",
+            "api_status": "healthy",
+            "api_key_configured": true,
+            "last_check": "2025-05-29T18:31:22.509296",
+            "failure_count": 0,
+            "mongodb_connected": true,
+            "cache_entries": 0,
+            "uptime": 32.188921,
+            "version": "2.0.0"
+          }
+        }
+      },
+      "mongodb_connected": true,
+      "inter_agent_communication": true,
+      "timestamp": "2025-05-29T18:31:50.009186"
+    }
+  },
+  "agents_status": {
+    "status": "checked",
+    "data": {
+      "status": "success",
+      "agents": {
+        "document_agent": {
+          "status": "loaded",
+          "metadata": {
+            "id": "document_agent",
+            "name": "Document Agent",
+            "version": "2.0.0",
+            "author": "MCP System",
+            "description": "Document processing, text analysis, and content extraction",
+            "category": "processing",
+            "status": "live",
+            "dependencies": [
+              "pymongo"
+            ],
+            "auto_load": true,
+            "priority": 3,
+            "health_check_interval": 60,
+            "max_failures": 3,
+            "recovery_timeout": 120
+          },
+          "health": {
+            "status": "healthy",
+            "last_check": "2025-05-29T18:31:22.458635",
+            "failure_count": 0,
+            "details": {
+              "agent_id": "document_agent",
+              "status": "healthy",
+              "last_check": "2025-05-29T18:31:22.458635",
+              "failure_count": 0,
+              "mongodb_connected": true,
+              "uptime": 32.170992,
+              "test_processing": "success",
+              "version": "2.0.0"
+            }
+          },
+          "loaded_at": "2025-05-29T18:30:50.287643",
+          "file_path": "agents\\live\\document_agent.py"
+        },
+        "math_agent": {
+          "status": "loaded",
+          "metadata": {
+            "id": "math_agent",
+            "name": "Math Agent",
+            "version": "2.0.0",
+            "author": "MCP System",
+            "description": "Advanced mathematical calculations with MongoDB storage",
+            "category": "computation",
+            "status": "live",
+            "dependencies": [
+              "pymongo"
+            ],
+            "auto_load": true,
+            "priority": 1,
+            "health_check_interval": 30,
+            "max_failures": 3,
+            "recovery_timeout": 60
+          },
+          "health": {
+            "status": "healthy",
+            "last_check": "2025-05-29T18:31:22.458990",
+            "failure_count": 0,
+            "details": {
+              "agent_id": "math_agent",
+              "status": "healthy",
+              "last_check": "2025-05-29T18:31:22.458990",
+              "failure_count": 0,
+              "mongodb_connected": true,
+              "uptime": 32.153425,
+              "test_calculation": 4.0,
+              "version": "2.0.0"
+            }
+          },
+          "loaded_at": "2025-05-29T18:30:50.305565",
+          "file_path": "agents\\live\\math_agent.py"
+        },
+        "weather_agent": {
+          "status": "loaded",
+          "metadata": {
+            "id": "weather_agent",
+            "name": "Weather Agent",
+            "version": "2.0.0",
+            "author": "MCP System",
+            "description": "Real-time weather data with OpenWeatherMap API integration",
+            "category": "data",
+            "status": "live",
+            "dependencies": [
+              "requests",
+              "pymongo"
+            ],
+            "auto_load": true,
+            "priority": 2,
+            "health_check_interval": 60,
+            "max_failures": 5,
+            "recovery_timeout": 120,
+            "api_requirements": [
+              "OPENWEATHER_API_KEY"
+            ]
+          },
+          "health": {
+            "status": "healthy",
+            "last_check": "2025-05-29T18:31:22.509683",
+            "failure_count": 0,
+            "details": {
+              "agent_id": "weather_agent",
+              "status": "healthy",
+              "api_status": "healthy",
+              "api_key_configured": true,
+              "last_check": "2025-05-29T18:31:22.509296",
+              "failure_count": 0,
+              "mongodb_connected": true,
+              "cache_entries": 0,
+              "uptime": 32.188921,
+              "version": "2.0.0"
+            }
+          },
+          "loaded_at": "2025-05-29T18:30:50.320375",
+          "file_path": "agents\\live\\weather_agent.py"
+        },
+        "calendar_agent": {
+          "status": "discovered",
+          "metadata": {
+            "id": "calendar_agent",
+            "name": "Calendar Agent",
+            "version": "2.0.0",
+            "author": "MCP System",
+            "description": "Calendar management and scheduling system (currently inactive)",
+            "category": "productivity",
+            "status": "inactive",
+            "dependencies": [
+              "google-auth",
+              "google-auth-oauthlib",
+              "google-auth-httplib2",
+              "google-api-python-client"
+            ],
+            "auto_load": false,
+            "priority": 4,
+            "health_check_interval": 120,
+            "max_failures": 3,
+            "recovery_timeout": 180,
+            "inactive_reason": "Requires Google Calendar API credentials and OAuth setup"
+          },
+          "folder": "inactive",
+          "file_path": "agents\\inactive\\calendar_agent.py"
+        },
+        "gmail_agent": {
+          "status": "discovered",
+          "metadata": {
+            "id": "gmail_agent",
+            "name": "Gmail Agent",
+            "version": "2.0.0",
+            "author": "MCP System",
+            "description": "Email automation and notification system (currently inactive)",
+            "category": "communication",
+            "status": "inactive",
+            "dependencies": [
+              "google-auth",
+              "google-auth-oauthlib",
+              "google-auth-httplib2",
+              "google-api-python-client"
+            ],
+            "auto_load": false,
+            "priority": 3,
+            "health_check_interval": 120,
+            "max_failures": 3,
+            "recovery_timeout": 180,
+            "inactive_reason": "Requires Gmail API credentials and OAuth setup"
+          },
+          "folder": "inactive",
+          "file_path": "agents\\inactive\\gmail_agent.py"
+        },
+        "ai_assistant_agent": {
+          "status": "discovered",
+          "metadata": {
+            "id": "ai_assistant_agent",
+            "name": "AI Assistant Agent",
+            "version": "1.0.0",
+            "author": "MCP System",
+            "description": "Advanced AI assistant with natural language processing and reasoning capabilities",
+            "category": "ai",
+            "status": "future",
+            "dependencies": [
+              "openai",
+              "anthropic",
+              "transformers"
+            ],
+            "auto_load": false,
+            "priority": 1,
+            "health_check_interval": 60,
+            "max_failures": 3,
+            "recovery_timeout": 120,
+            "future_requirements": [
+              "AI API credentials (OpenAI, Anthropic, etc.)",
+              "Natural language processing models",
+              "Reasoning and conversation capabilities",
+              "Integration with external AI services"
+            ]
+          },
+          "folder": "future",
+          "file_path": "agents\\future\\ai_assistant_agent.py"
+        },
+        "template_agent": {
+          "status": "discovered",
+          "metadata": {
+            "id": "template_agent",
+            "name": "Template Agent",
+            "version": "1.0.0",
+            "author": "Your Name",
+            "description": "Template agent for creating new MCP agents",
+            "category": "template",
+            "status": "template",
+            "dependencies": [],
+            "auto_load": false,
+            "priority": 5,
+            "health_check_interval": 60,
+            "max_failures": 3,
+            "recovery_timeout": 120
+          },
+          "folder": "templates",
+          "file_path": "agents\\templates\\agent_template.py"
+        }
+      },
+      "summary": {
+        "total_agents": 7,
+        "loaded_agents": 3,
+        "failed_agents": 0,
+        "discovered_agents": 7
+      },
+      "timestamp": "2025-05-29T18:31:52.078230"
+    }
+  },
+  "command_processing": {
+    "status": "tested",
+    "results": [
+      {
+        "command": "Calculate 25 * 4",
+        "status": "success",
+        "agent_used": "document_agent",
+        "stored": false,
+        "success": true
+      },
+      {
+        "command": "What is the weather in Mumbai?",
+        "status": "success",
+        "agent_used": "document_agent",
+        "stored": false,
+        "success": true
+      },
+      {
+        "command": "Analyze this text: Hello world",
+        "status": "success",
+        "agent_used": "document_agent",
+        "stored": false,
+        "success": true
+      }
+    ],
+    "success_rate": 1.0
+  },
+  "mongodb_storage": {
+    "status": "checked",
+    "stored": false,
+    "mongodb_id": null,
+    "storage_method": "failed"
+  },
+  "agent_discovery": {
+    "status": "checked",
+    "data": {
+      "status": "success",
+      "discovered": {
+        "live": [
+          "document_agent",
+          "math_agent",
+          "weather_agent"
+        ],
+        "inactive": [
+          "calendar_agent",
+          "gmail_agent"
+        ],
+        "future": [
+          "ai_assistant_agent"
+        ],
+        "templates": [
+          "template_agent"
+        ]
+      },
+      "timestamp": "2025-05-29T18:32:02.737500"
+    }
+  },
+  "summary": {
+    "overall_health_percent": 80.0,
+    "healthy_components": 4,
+    "total_components": 5,
+    "component_status": {
+      "server": true,
+      "agents": true,
+      "command_processing": true,
+      "mongodb_storage": false,
+      "agent_discovery": true
+    },
+    "timestamp": "2025-05-29T18:32:04.026658"
+  }
+}

@@ -18,6 +18,7 @@ class AgentCapability:
     input_types: List[str]
     output_types: List[str]
     methods: List[str]
+    version: str = "1.0.0"
     can_call_agents: Optional[List[str]] = None
 
 @dataclass

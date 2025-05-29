@@ -1,0 +1,238 @@
+# Production MCP Server Configuration
+# Scalable, modular, and production-ready configuration
+
+server:
+  name: "Production MCP Server"
+  version: "2.0.0"
+  host: "0.0.0.0"
+  port: 8000
+  log_level: "INFO"
+  log_file: "mcp_server.log"
+  max_workers: 4
+  timeout: 30
+
+# Agent Management Configuration
+agents:
+  # Folder structure for agent organization
+  folders:
+    live: "agents/live"
+    inactive: "agents/inactive"
+    future: "agents/future"
+    templates: "agents/templates"
+  
+  # Auto-discovery settings
+  discovery:
+    enabled: true
+    interval_seconds: 60
+    auto_load_live: true
+    scan_on_startup: true
+  
+  # Health monitoring
+  health:
+    check_interval: 30
+    max_failures: 3
+    recovery_timeout: 120
+    auto_recovery: true
+    failure_isolation: true
+  
+  # Hot-swapping configuration
+  hot_swap:
+    enabled: true
+    graceful_shutdown: true
+    backup_before_update: true
+    rollback_on_failure: true
+
+# MongoDB Configuration
+mongodb:
+  enabled: true
+  connection_string: "${MONGODB_CONNECTION_STRING}"
+  database: "mcp_production"
+  collections:
+    commands: "mcp_commands"
+    agent_outputs: "agent_outputs"
+    health_checks: "health_checks"
+    inter_agent_communications: "inter_agent_communications"
+    system_logs: "system_logs"
+  
+  # Connection settings
+  connection:
+    timeout_ms: 5000
+    retry_writes: true
+    max_pool_size: 10
+    min_pool_size: 1
+  
+  # Storage settings
+  storage:
+    force_backup: true
+    compression: true
+    ttl_days: 30
+    index_optimization: true
+
+# Inter-Agent Communication
+inter_agent:
+  enabled: true
+  timeout_seconds: 30
+  max_concurrent_calls: 10
+  retry_attempts: 3
+  circuit_breaker:
+    enabled: true
+    failure_threshold: 5
+    recovery_timeout: 60
+
+# Security Configuration
+security:
+  api_keys:
+    enabled: false
+    header_name: "X-API-Key"
+  
+  rate_limiting:
+    enabled: true
+    requests_per_minute: 100
+    burst_size: 20
+  
+  cors:
+    enabled: true
+    allowed_origins: ["*"]
+    allowed_methods: ["GET", "POST", "PUT", "DELETE"]
+    allowed_headers: ["*"]
+
+# Monitoring and Observability
+monitoring:
+  metrics:
+    enabled: true
+    endpoint: "/metrics"
+    include_agent_metrics: true
+  
+  health_checks:
+    endpoint: "/health"
+    detailed: true
+    include_dependencies: true
+  
+  logging:
+    structured: true
+    include_request_id: true
+    log_agent_performance: true
+
+# Deployment Configuration
+deployment:
+  environment: "production"
+  
+  # Docker settings
+  docker:
+    image: "mcp-server:latest"
+    container_name: "mcp-production"
+    restart_policy: "unless-stopped"
+    memory_limit: "2g"
+    cpu_limit: "1.0"
+  
+  # Kubernetes settings
+  kubernetes:
+    namespace: "mcp-system"
+    replicas: 3
+    service_type: "ClusterIP"
+    ingress_enabled: true
+    resource_limits:
+      memory: "2Gi"
+      cpu: "1000m"
+    resource_requests:
+      memory: "1Gi"
+      cpu: "500m"
+
+# Scaling Configuration
+scaling:
+  horizontal:
+    enabled: true
+    min_replicas: 2
+    max_replicas: 10
+    target_cpu_utilization: 70
+    target_memory_utilization: 80
+  
+  vertical:
+    enabled: false
+    update_mode: "Auto"
+  
+  agent_scaling:
+    max_agents_per_instance: 50
+    load_balancing: "round_robin"
+    sticky_sessions: false
+
+# Backup and Recovery
+backup:
+  enabled: true
+  schedule: "0 2 * * *"  # Daily at 2 AM
+  retention_days: 30
+  
+  targets:
+    - type: "mongodb"
+      collections: ["all"]
+    - type: "agent_configs"
+      path: "agents/"
+    - type: "logs"
+      path: "logs/"
+
+# Performance Tuning
+performance:
+  # Connection pooling
+  connection_pool:
+    max_size: 100
+    min_size: 10
+    idle_timeout: 300
+  
+  # Caching
+  cache:
+    enabled: true
+    type: "redis"
+    ttl_seconds: 300
+    max_size_mb: 100
+  
+  # Async settings
+  async:
+    max_concurrent_requests: 1000
+    request_timeout: 30
+    keep_alive_timeout: 5
+
+# Feature Flags
+features:
+  agent_hot_reload: true
+  distributed_agents: false
+  agent_federation: false
+  advanced_routing: true
+  request_tracing: true
+  performance_profiling: false
+
+# Environment-specific overrides
+environments:
+  development:
+    server:
+      log_level: "DEBUG"
+      port: 8001
+    agents:
+      health:
+        check_interval: 10
+    mongodb:
+      database: "mcp_development"
+  
+  staging:
+    server:
+      log_level: "INFO"
+      port: 8002
+    scaling:
+      horizontal:
+        min_replicas: 1
+        max_replicas: 3
+    mongodb:
+      database: "mcp_staging"
+  
+  production:
+    server:
+      log_level: "WARNING"
+    security:
+      api_keys:
+        enabled: true
+      rate_limiting:
+        requests_per_minute: 1000
+    monitoring:
+      metrics:
+        enabled: true
+    backup:
+      enabled: true

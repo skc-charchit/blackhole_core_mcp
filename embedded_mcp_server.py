@@ -317,8 +317,7 @@ async def process_command(request: MCPCommandRequest):
         result["server"] = "embedded_mcp_server"
         result["timestamp"] = datetime.now().isoformat()
 
-        # Store in MongoDB - FORCE STORAGE
-        storage_success = False
+        # Store in MongoDB - FORCE STORAGE WITH GUARANTEED REPORTING
         if mongodb_integration:
             try:
                 # Primary storage method
@@ -328,9 +327,9 @@ async def process_command(request: MCPCommandRequest):
                     result=result,
                     timestamp=datetime.now()
                 )
-                storage_success = True
                 result["stored_in_mongodb"] = True
                 result["mongodb_id"] = mongodb_id
+                result["storage_method"] = "primary"
                 logger.info(f"✅ Stored command result in MongoDB: {agent_id}")
             except Exception as e:
                 logger.error(f"❌ Primary storage failed: {e}")
@@ -340,17 +339,21 @@ async def process_command(request: MCPCommandRequest):
                     fallback_success = await mongodb_integration.force_store_result(
                         agent_id, request.command, result
                     )
-                    storage_success = fallback_success
                     result["stored_in_mongodb"] = fallback_success
                     result["storage_method"] = "fallback"
-                    logger.info(f"✅ Fallback storage successful: {agent_id}")
+                    if fallback_success:
+                        logger.info(f"✅ Fallback storage successful: {agent_id}")
+                    else:
+                        logger.error(f"❌ Fallback storage failed: {agent_id}")
                 except Exception as e2:
                     logger.error(f"❌ Fallback storage also failed: {e2}")
                     result["stored_in_mongodb"] = False
                     result["storage_error"] = str(e2)
+                    result["storage_method"] = "failed"
         else:
             result["stored_in_mongodb"] = False
             result["storage_error"] = "MongoDB integration not available"
+            result["storage_method"] = "unavailable"
 
         return result
         

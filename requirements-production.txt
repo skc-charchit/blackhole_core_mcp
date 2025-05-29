@@ -1,0 +1,276 @@
+# Production Requirements for MCP Server
+# Additional packages for production deployment
+
+# Production ASGI Server
+uvicorn[standard]==0.24.0
+gunicorn==21.2.0
+
+# Production Monitoring
+prometheus-client==0.19.0
+psutil==5.9.6
+
+# Caching
+redis==5.0.1
+hiredis==2.2.3
+
+# Configuration Management
+pyyaml==6.0.1
+python-decouple==3.8
+
+# Security
+cryptography==41.0.8
+passlib[bcrypt]==1.7.4
+python-jose[cryptography]==3.3.0
+
+# Rate Limiting
+slowapi==0.1.9
+
+# Health Checks
+httpx==0.25.2
+
+# Structured Logging
+structlog==23.2.0
+python-json-logger==2.0.7
+
+# Performance Monitoring
+py-spy==0.3.14
+
+# Database Connection Pooling
+motor==3.3.2  # Async MongoDB driver
+
+# Load Balancing
+aiohttp==3.9.1
+
+# Circuit Breaker Pattern
+pybreaker==1.0.1
+
+# Metrics and Tracing
+opentelemetry-api==1.21.0
+opentelemetry-sdk==1.21.0
+opentelemetry-instrumentation-fastapi==0.42b0
+opentelemetry-exporter-prometheus==1.12.0rc1
+
+# Container Health
+docker==6.1.3
+
+# Backup and Recovery
+schedule==1.2.0
+
+# Environment Detection
+python-dotenv==1.0.0
+
+# Process Management
+supervisor==4.2.5
+
+# Memory Profiling
+memory-profiler==0.61.0
+
+# Async Task Queue
+celery==5.3.4
+kombu==5.3.4
+
+# Message Broker
+aio-pika==9.3.1  # For RabbitMQ
+
+# Distributed Locking
+redis-py-cluster==2.1.3
+
+# Configuration Validation
+pydantic-settings==2.1.0
+
+# API Documentation
+fastapi-users==12.1.2
+
+# CORS and Security Headers
+fastapi-cors==0.0.6
+
+# Request ID Tracking
+asgi-correlation-id==4.3.0
+
+# Graceful Shutdown
+graceful==0.1.1
+
+# File Watching for Hot Reload
+watchdog==3.0.0
+
+# Compression
+brotli==1.1.0
+gzip-stream==0.3.0
+
+# SSL/TLS
+certifi==2023.11.17
+
+# Network Utilities
+netifaces==0.11.0
+
+# System Information
+distro==1.8.0
+
+# Time Zone Handling
+pytz==2023.3.post1
+
+# UUID Generation
+uuid==1.30
+
+# JSON Schema Validation
+jsonschema==4.20.0
+
+# HTTP Client with Retry
+tenacity==8.2.3
+
+# Async Context Managers
+async-timeout==4.0.3
+
+# Signal Handling
+signal-slot==1.0.0
+
+# Resource Limits
+resource==0.2.1
+
+# Process Utilities
+psutil==5.9.6
+
+# Lock Files
+filelock==3.13.1
+
+# Temporary Files
+tempfile-fast==0.1.0
+
+# Path Utilities
+pathlib2==2.3.7.post1
+
+# String Utilities
+inflection==0.5.1
+
+# Date/Time Utilities
+arrow==1.3.0
+
+# Validation
+validators==0.22.0
+
+# Retry Logic
+backoff==2.2.1
+
+# Circuit Breaker
+circuitbreaker==1.4.0
+
+# Rate Limiting
+limits==3.6.0
+
+# Caching Utilities
+cachetools==5.3.2
+
+# Async Utilities
+asyncio-throttle==1.0.2
+
+# Event Loop Utilities
+uvloop==0.19.0  # Linux/macOS only
+
+# Production WSGI Server (backup)
+waitress==2.1.2
+
+# Health Check Utilities
+healthcheck==1.3.3
+
+# Metrics Collection
+statsd==4.0.1
+
+# Log Rotation
+logrotate==0.1.0
+
+# System Monitoring
+py-cpuinfo==9.0.0
+
+# Network Monitoring
+ping3==4.0.4
+
+# Disk Usage
+shutil==1.0.0
+
+# Environment Variables
+environs==10.0.0
+
+# Configuration Merging
+mergedeep==1.3.4
+
+# YAML Processing
+ruamel.yaml==0.18.5
+
+# JSON Processing
+orjson==3.9.10
+
+# XML Processing
+lxml==4.9.3
+
+# CSV Processing
+pandas==2.1.4
+
+# Excel Processing
+openpyxl==3.1.2
+
+# PDF Processing
+PyPDF2==3.0.1
+
+# Image Processing
+Pillow==10.1.0
+
+# Text Processing
+nltk==3.8.1
+
+# Regular Expressions
+regex==2023.10.3
+
+# URL Processing
+furl==2.1.3
+
+# Email Utilities
+email-validator==2.1.0.post1
+
+# Phone Number Validation
+phonenumbers==8.13.26
+
+# Country/Language Detection
+langdetect==1.0.9
+
+# Timezone Detection
+tzlocal==5.2
+
+# Color Output
+colorama==0.4.6
+
+# Progress Bars
+tqdm==4.66.1
+
+# CLI Utilities
+click==8.1.7
+
+# Table Formatting
+tabulate==0.9.0
+
+# Pretty Printing
+pprint==0.1
+
+# Debugging
+icecream==2.1.3
+
+# Testing Utilities (for production health checks)
+pytest==7.4.3
+pytest-asyncio==0.21.1
+
+# Code Quality
+black==23.11.0
+isort==5.12.0
+flake8==6.1.0
+
+# Security Scanning
+bandit==1.7.5
+safety==2.3.5
+
+# Dependency Management
+pip-tools==7.3.0
+
+# Package Information
+pkg-resources==0.0.0
+
+# System Integration
+systemd-python==235  # Linux only

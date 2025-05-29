@@ -102,6 +102,106 @@ class MCPMongoDBIntegration:
             self.logger.error(f"Error saving agent output: {e}")
             return f"error_{datetime.now().timestamp()}"
 
+    async def store_command_result(self, command: str, agent_used: str, result: Dict[str, Any], timestamp: datetime) -> str:
+        """Store MCP command result in MongoDB."""
+        if not self.db:
+            self.logger.warning("MongoDB not connected, cannot store command result")
+            return f"mock_{timestamp.timestamp()}"
+
+        try:
+            # Store in mcp_commands collection
+            commands_collection = self.db['mcp_commands']
+
+            document = {
+                "command": command,
+                "agent_used": agent_used,
+                "result": result,
+                "timestamp": timestamp,
+                "created_at": datetime.now(),
+                "server": "embedded_mcp_server",
+                "storage_type": "command_result"
+            }
+
+            result_doc = commands_collection.insert_one(document)
+
+            # Also store in agent_outputs collection for compatibility
+            await self.save_agent_output(
+                agent_used,
+                {"command": command, "query": command, "type": "mcp_command"},
+                result,
+                {
+                    "command_timestamp": timestamp.isoformat(),
+                    "server": "embedded_mcp_server",
+                    "storage_type": "agent_output",
+                    "mongodb_id": str(result_doc.inserted_id)
+                }
+            )
+
+            self.logger.info(f"✅ Stored command result in MongoDB: {result_doc.inserted_id}")
+            return str(result_doc.inserted_id)
+
+        except Exception as e:
+            self.logger.error(f"❌ Error storing command result: {e}")
+            return f"error_{timestamp.timestamp()}"
+
+    async def force_store_result(self, agent_id: str, command: str, result: Dict[str, Any]) -> bool:
+        """Force store any result in MongoDB with multiple fallback methods."""
+        if not self.db:
+            self.logger.warning("MongoDB not connected")
+            return False
+
+        try:
+            timestamp = datetime.now()
+
+            # Method 1: Store in mcp_commands
+            try:
+                commands_collection = self.db['mcp_commands']
+                commands_collection.insert_one({
+                    "command": command,
+                    "agent_used": agent_id,
+                    "result": result,
+                    "timestamp": timestamp,
+                    "created_at": timestamp,
+                    "server": "embedded_mcp_server",
+                    "storage_method": "force_store"
+                })
+                self.logger.info(f"✅ Force stored in mcp_commands: {agent_id}")
+            except Exception as e:
+                self.logger.error(f"Failed to store in mcp_commands: {e}")
+
+            # Method 2: Store in agent_outputs
+            try:
+                await self.save_agent_output(
+                    agent_id,
+                    {"command": command, "query": command, "type": "force_store"},
+                    result,
+                    {"timestamp": timestamp.isoformat(), "storage_method": "force_store"}
+                )
+                self.logger.info(f"✅ Force stored in agent_outputs: {agent_id}")
+            except Exception as e:
+                self.logger.error(f"Failed to store in agent_outputs: {e}")
+
+            # Method 3: Store in general results collection
+            try:
+                results_collection = self.db['all_results']
+                results_collection.insert_one({
+                    "agent_id": agent_id,
+                    "command": command,
+                    "result": result,
+                    "timestamp": timestamp,
+                    "created_at": timestamp,
+                    "storage_method": "force_store_fallback"
+                })
+                self.logger.info(f"✅ Force stored in all_results: {agent_id}")
+            except Exception as e:
+                self.logger.error(f"Failed to store in all_results: {e}")
+
+            return True
+
+        except Exception as e:
+            self.logger.error(f"❌ Complete force store failure: {e}")
+            return False
+
     async def process_document_with_agent(self, filename: str, content: str,
                                         query: str = "analyze this document") -> Dict[str, Any]:
         """Process document using document_processor agent and save to MongoDB."""

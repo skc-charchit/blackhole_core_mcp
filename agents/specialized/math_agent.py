@@ -8,6 +8,7 @@ import os
 import re
 import math
 import operator
+import asyncio
 from datetime import datetime
 from typing import Dict, List, Any, Optional, Union
 import logging
@@ -17,6 +18,13 @@ import sys
 sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
 from agents.base_agent import BaseMCPAgent, AgentCapability, MCPMessage
+
+# MongoDB integration
+try:
+    from mcp_mongodb_integration import MCPMongoDBIntegration
+    MONGODB_AVAILABLE = True
+except ImportError:
+    MONGODB_AVAILABLE = False
 
 class MathAgent(BaseMCPAgent):
     """Math agent for mathematical calculations and operations."""
@@ -33,7 +41,16 @@ class MathAgent(BaseMCPAgent):
         ]
         
         super().__init__("math_agent", "Math Agent", capabilities)
-        
+
+        # Initialize MongoDB integration
+        self.mongodb_integration = None
+        if MONGODB_AVAILABLE:
+            try:
+                self.mongodb_integration = MCPMongoDBIntegration()
+                asyncio.create_task(self._init_mongodb())
+            except Exception as e:
+                self.logger.error(f"Failed to initialize MongoDB: {e}")
+
         # Mathematical operations mapping
         self.operations = {
             '+': operator.add,
@@ -70,7 +87,54 @@ class MathAgent(BaseMCPAgent):
         }
         
         self.logger.info("Math Agent initialized")
-    
+
+    async def _init_mongodb(self):
+        """Initialize MongoDB connection."""
+        if self.mongodb_integration:
+            try:
+                connected = await self.mongodb_integration.connect()
+                if connected:
+                    self.logger.info("Math Agent connected to MongoDB")
+                else:
+                    self.logger.warning("Math Agent failed to connect to MongoDB")
+            except Exception as e:
+                self.logger.error(f"Math Agent MongoDB initialization error: {e}")
+
+    async def _store_calculation(self, input_data: Dict[str, Any], result: Dict[str, Any]):
+        """Store calculation result in MongoDB with force storage."""
+        if self.mongodb_integration:
+            try:
+                # Primary storage method
+                mongodb_id = await self.mongodb_integration.save_agent_output(
+                    "math_agent",
+                    input_data,
+                    result,
+                    {"calculation_type": result.get("operation", "unknown"), "storage_type": "calculation"}
+                )
+                self.logger.info(f"✅ Math calculation stored in MongoDB: {mongodb_id}")
+
+                # Also force store as backup
+                await self.mongodb_integration.force_store_result(
+                    "math_agent",
+                    input_data.get("expression", "unknown"),
+                    result
+                )
+                self.logger.info("✅ Math calculation force stored as backup")
+
+            except Exception as e:
+                self.logger.error(f"❌ Failed to store math calculation: {e}")
+
+                # Try force storage as fallback
+                try:
+                    await self.mongodb_integration.force_store_result(
+                        "math_agent",
+                        input_data.get("expression", "unknown"),
+                        result
+                    )
+                    self.logger.info("✅ Math calculation fallback storage successful")
+                except Exception as e2:
+                    self.logger.error(f"❌ Math calculation fallback storage failed: {e2}")
+
     async def handle_process(self, message: MCPMessage) -> Dict[str, Any]:
         """Handle the main process method."""
         try:
@@ -94,7 +158,16 @@ class MathAgent(BaseMCPAgent):
                 }
             
             # Process the mathematical expression
-            return await self.process_math_expression(expression)
+            result = await self.process_math_expression(expression)
+
+            # Store in MongoDB
+            if result.get("status") == "success":
+                await self._store_calculation(
+                    {"expression": expression, "query": expression},
+                    result
+                )
+
+            return result
             
         except Exception as e:
             self.logger.error(f"Error in process: {e}")

@@ -1,0 +1,478 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MCP Client - Web Interface</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+        }
+
+        .header p {
+            font-size: 1.2em;
+            opacity: 0.9;
+        }
+
+        .main-content {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
+            padding: 30px;
+        }
+
+        .section {
+            background: #f8f9fa;
+            border-radius: 10px;
+            padding: 25px;
+            border: 1px solid #e9ecef;
+        }
+
+        .section h2 {
+            color: #333;
+            margin-bottom: 20px;
+            font-size: 1.5em;
+            border-bottom: 2px solid #4facfe;
+            padding-bottom: 10px;
+        }
+
+        .input-group {
+            margin-bottom: 20px;
+        }
+
+        .input-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #555;
+        }
+
+        .input-group input, .input-group textarea, .input-group select {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            font-size: 16px;
+            transition: border-color 0.3s;
+        }
+
+        .input-group input:focus, .input-group textarea:focus, .input-group select:focus {
+            outline: none;
+            border-color: #4facfe;
+        }
+
+        .btn {
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+            color: white;
+            border: none;
+            padding: 12px 25px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: 600;
+            transition: transform 0.2s;
+            margin-right: 10px;
+            margin-bottom: 10px;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+        }
+
+        .btn-secondary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+
+        .btn-success {
+            background: linear-gradient(135deg, #56ab2f 0%, #a8e6cf 100%);
+        }
+
+        .btn-warning {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+        }
+
+        .status-panel {
+            background: #e8f5e8;
+            border: 1px solid #c3e6c3;
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 20px;
+        }
+
+        .status-panel.error {
+            background: #ffeaea;
+            border-color: #ffcccb;
+        }
+
+        .response-area {
+            background: #f1f3f4;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            padding: 20px;
+            min-height: 200px;
+            font-family: 'Courier New', monospace;
+            white-space: pre-wrap;
+            overflow-y: auto;
+            max-height: 400px;
+        }
+
+        .full-width {
+            grid-column: 1 / -1;
+        }
+
+        .agent-list {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 15px;
+            margin-top: 15px;
+        }
+
+        .agent-card {
+            background: white;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            padding: 15px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .agent-card h4 {
+            color: #4facfe;
+            margin-bottom: 8px;
+        }
+
+        .loading {
+            display: none;
+            text-align: center;
+            padding: 20px;
+        }
+
+        .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #4facfe;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 10px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        @media (max-width: 768px) {
+            .main-content {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🤖 MCP Client</h1>
+            <p>Web Interface for Model Context Protocol Server</p>
+        </div>
+
+        <div class="main-content">
+            <!-- Connection Section -->
+            <div class="section">
+                <h2>🔗 Connection</h2>
+
+                <div class="input-group">
+                    <label for="serverUrl">Server URL:</label>
+                    <input type="text" id="serverUrl" value="http://localhost:8000" placeholder="http://localhost:8000">
+                </div>
+
+                <button class="btn" onclick="connectToServer()">Connect</button>
+                <button class="btn btn-secondary" onclick="disconnectFromServer()">Disconnect</button>
+                <button class="btn btn-warning" onclick="getServerStatus()">Status</button>
+
+                <div id="connectionStatus" class="status-panel">
+                    <strong>Status:</strong> Not connected
+                </div>
+            </div>
+
+            <!-- Command Section -->
+            <div class="section">
+                <h2>💬 Send Command</h2>
+
+                <div class="input-group">
+                    <label for="commandText">Command:</label>
+                    <textarea id="commandText" rows="3" placeholder="Enter your command here..."></textarea>
+                </div>
+
+                <div class="input-group">
+                    <label for="documentContent">Document Content (optional):</label>
+                    <textarea id="documentContent" rows="4" placeholder="Paste document content here..."></textarea>
+                </div>
+
+                <div class="input-group">
+                    <label for="documentName">Document Name:</label>
+                    <input type="text" id="documentName" placeholder="document.txt">
+                </div>
+
+                <button class="btn" onclick="sendCommand()">Send Command</button>
+                <button class="btn btn-success" onclick="testDocumentAnalysis()">Test Analysis</button>
+                <button class="btn btn-secondary" onclick="getWeather()">Get Weather</button>
+            </div>
+
+            <!-- Response Section -->
+            <div class="section full-width">
+                <h2>📥 Response</h2>
+
+                <div class="loading" id="loading">
+                    <div class="spinner"></div>
+                    <p>Processing request...</p>
+                </div>
+
+                <div id="responseArea" class="response-area">
+                    Responses will appear here...
+                </div>
+            </div>
+
+            <!-- Agents Section -->
+            <div class="section full-width">
+                <h2>🤖 Available Agents</h2>
+
+                <button class="btn" onclick="loadAgents()">Refresh Agents</button>
+                <button class="btn btn-warning" onclick="reloadAgents()">Reload Agents</button>
+
+                <div id="agentsList" class="agent-list">
+                    <p>Click "Refresh Agents" to load available agents...</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let isConnected = false;
+        let serverUrl = 'http://localhost:8000';
+
+        function updateConnectionStatus(status, message, isError = false) {
+            const statusPanel = document.getElementById('connectionStatus');
+            statusPanel.innerHTML = `<strong>Status:</strong> ${message}`;
+            statusPanel.className = `status-panel ${isError ? 'error' : ''}`;
+        }
+
+        function showLoading(show = true) {
+            document.getElementById('loading').style.display = show ? 'block' : 'none';
+        }
+
+        function displayResponse(response) {
+            const responseArea = document.getElementById('responseArea');
+            responseArea.textContent = JSON.stringify(response, null, 2);
+        }
+
+        async function connectToServer() {
+            serverUrl = document.getElementById('serverUrl').value;
+
+            try {
+                showLoading(true);
+                const response = await fetch(`${serverUrl}/api/health`);
+                const data = await response.json();
+
+                if (data.status === 'ok') {
+                    isConnected = true;
+                    updateConnectionStatus('connected', `Connected to ${serverUrl}`);
+                    await loadAgents();
+                } else {
+                    updateConnectionStatus('error', 'Server not responding properly', true);
+                }
+            } catch (error) {
+                updateConnectionStatus('error', `Connection failed: ${error.message}`, true);
+            } finally {
+                showLoading(false);
+            }
+        }
+
+        function disconnectFromServer() {
+            isConnected = false;
+            updateConnectionStatus('disconnected', 'Disconnected');
+            document.getElementById('agentsList').innerHTML = '<p>Disconnected from server</p>';
+        }
+
+        async function getServerStatus() {
+            if (!isConnected) {
+                alert('Please connect to server first');
+                return;
+            }
+
+            try {
+                showLoading(true);
+                const response = await fetch(`${serverUrl}/api/health`);
+                const data = await response.json();
+                displayResponse(data);
+            } catch (error) {
+                displayResponse({ error: error.message });
+            } finally {
+                showLoading(false);
+            }
+        }
+
+        async function sendCommand() {
+            if (!isConnected) {
+                alert('Please connect to server first');
+                return;
+            }
+
+            const command = document.getElementById('commandText').value;
+            const documentContent = document.getElementById('documentContent').value;
+            const documentName = document.getElementById('documentName').value;
+
+            if (!command.trim()) {
+                alert('Please enter a command');
+                return;
+            }
+
+            try {
+                showLoading(true);
+
+                const payload = {
+                    command: command,
+                    session_id: `web_client_${Date.now()}`,
+                    rag_mode: !!documentContent
+                };
+
+                if (documentContent) {
+                    payload.documents_context = [{
+                        filename: documentName || 'document.txt',
+                        content: documentContent,
+                        type: 'text'
+                    }];
+                }
+
+                const response = await fetch(`${serverUrl}/api/mcp/command`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(payload)
+                });
+
+                const data = await response.json();
+                displayResponse(data);
+            } catch (error) {
+                displayResponse({ error: error.message });
+            } finally {
+                showLoading(false);
+            }
+        }
+
+        async function testDocumentAnalysis() {
+            document.getElementById('commandText').value = 'analyze this document';
+            document.getElementById('documentContent').value = `Sample Document Content
+
+Content Type: Text Document
+Processing Confidence: 95%
+
+Text Content:
+"This is a sample document for testing the analysis capabilities of the MCP system."
+
+Additional Context:
+This document demonstrates the system's ability to process and analyze various types of content.`;
+            document.getElementById('documentName').value = 'sample_document.txt';
+
+            await sendCommand();
+        }
+
+        async function getWeather() {
+            const location = prompt('Enter location for weather:');
+            if (location) {
+                document.getElementById('commandText').value = `get weather for ${location}`;
+                document.getElementById('documentContent').value = '';
+                await sendCommand();
+            }
+        }
+
+        async function loadAgents() {
+            if (!isConnected) {
+                return;
+            }
+
+            try {
+                const response = await fetch(`${serverUrl}/api/mcp/agents`);
+                const data = await response.json();
+
+                const agentsList = document.getElementById('agentsList');
+
+                if (data.agents && Object.keys(data.agents).length > 0) {
+                    agentsList.innerHTML = '';
+
+                    for (const [agentId, agentInfo] of Object.entries(data.agents)) {
+                        const agentCard = document.createElement('div');
+                        agentCard.className = 'agent-card';
+                        agentCard.innerHTML = `
+                            <h4>${agentId}</h4>
+                            <p><strong>Name:</strong> ${agentInfo.name || 'Unknown'}</p>
+                            <p><strong>Capabilities:</strong> ${agentInfo.capabilities ? agentInfo.capabilities.length : 0}</p>
+                        `;
+                        agentsList.appendChild(agentCard);
+                    }
+                } else {
+                    agentsList.innerHTML = '<p>No agents available</p>';
+                }
+            } catch (error) {
+                document.getElementById('agentsList').innerHTML = `<p>Error loading agents: ${error.message}</p>`;
+            }
+        }
+
+        async function reloadAgents() {
+            if (!isConnected) {
+                alert('Please connect to server first');
+                return;
+            }
+
+            try {
+                showLoading(true);
+                const response = await fetch(`${serverUrl}/api/mcp/agents/reload`, {
+                    method: 'POST'
+                });
+                const data = await response.json();
+                displayResponse(data);
+                await loadAgents();
+            } catch (error) {
+                displayResponse({ error: error.message });
+            } finally {
+                showLoading(false);
+            }
+        }
+
+        // Auto-connect on page load
+        window.addEventListener('load', () => {
+            connectToServer();
+        });
+    </script>
+</body>
+</html>

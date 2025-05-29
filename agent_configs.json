@@ -1,0 +1,334 @@
+{
+  "example_http_agent": {
+    "id": "example_http_agent",
+    "name": "Example HTTP API Agent",
+    "description": "Example agent accessible via HTTP API",
+    "connection_type": "http_api",
+    "endpoint": "http://localhost:8001",
+    "headers": {
+      "Content-Type": "application/json",
+      "Authorization": "Bearer your-token-here"
+    },
+    "health_check": "http://localhost:8001/health",
+    "endpoints": {
+      "process": "/process",
+      "status": "/status"
+    },
+    "keywords": [
+      "example",
+      "demo",
+      "test"
+    ],
+    "patterns": [
+      "example\\s+(.+)",
+      "demo\\s+(.+)"
+    ],
+    "input_types": [
+      "text",
+      "json"
+    ],
+    "output_types": [
+      "json"
+    ],
+    "enabled": false
+  },
+  "python_module_agent": {
+    "id": "python_module_agent",
+    "name": "Python Module Agent",
+    "description": "Agent implemented as Python module",
+    "connection_type": "python_module",
+    "module_path": "your_agents.example_agent",
+    "class_name": "ExampleAgent",
+    "init_params": {
+      "config_param": "value"
+    },
+    "keywords": [
+      "python",
+      "module",
+      "local"
+    ],
+    "patterns": [
+      "python\\s+(.+)",
+      "local\\s+(.+)"
+    ],
+    "input_types": [
+      "text",
+      "dict"
+    ],
+    "output_types": [
+      "dict",
+      "json"
+    ],
+    "enabled": false
+  },
+  "function_agent": {
+    "id": "function_agent",
+    "name": "Function-based Agent",
+    "description": "Agent implemented as a simple function",
+    "connection_type": "function_call",
+    "module_path": "your_agents.functions",
+    "function_name": "process_request",
+    "keywords": [
+      "function",
+      "simple",
+      "quick"
+    ],
+    "patterns": [
+      "function\\s+(.+)",
+      "quick\\s+(.+)"
+    ],
+    "input_types": [
+      "text"
+    ],
+    "output_types": [
+      "text",
+      "dict"
+    ],
+    "enabled": false
+  },
+  "websocket_agent": {
+    "id": "websocket_agent",
+    "name": "WebSocket Agent",
+    "description": "Real-time agent via WebSocket",
+    "connection_type": "websocket",
+    "websocket_url": "ws://localhost:8002/ws",
+    "protocols": [
+      "agent-protocol"
+    ],
+    "headers": {},
+    "keywords": [
+      "realtime",
+      "websocket",
+      "live"
+    ],
+    "patterns": [
+      "realtime\\s+(.+)",
+      "live\\s+(.+)"
+    ],
+    "input_types": [
+      "text",
+      "json"
+    ],
+    "output_types": [
+      "json",
+      "stream"
+    ],
+    "enabled": false
+  },
+  "grpc_agent": {
+    "id": "grpc_agent",
+    "name": "gRPC Agent",
+    "description": "High-performance agent via gRPC",
+    "connection_type": "grpc",
+    "grpc_endpoint": "localhost:50051",
+    "service": "AgentService",
+    "methods": {
+      "Process": "process_request",
+      "Status": "get_status"
+    },
+    "keywords": [
+      "grpc",
+      "performance",
+      "fast"
+    ],
+    "patterns": [
+      "grpc\\s+(.+)",
+      "fast\\s+(.+)"
+    ],
+    "input_types": [
+      "protobuf",
+      "json"
+    ],
+    "output_types": [
+      "protobuf",
+      "json"
+    ],
+    "enabled": false
+  },
+  "simple_text_agent": {
+    "id": "simple_text_agent",
+    "name": "Simple Text Processing Agent",
+    "description": "Processes text without any code modifications",
+    "connection_type": "python_module",
+    "module_path": "example_agents.simple_agent",
+    "class_name": "SimpleAgent",
+    "init_params": {
+      "agent_name": "ConnectedSimpleAgent"
+    },
+    "keywords": [
+      "text",
+      "simple",
+      "analyze",
+      "process"
+    ],
+    "patterns": [
+      "analyze\\s+(.+)",
+      "process\\s+(.+)",
+      "simple\\s+(.+)"
+    ],
+    "enabled": true
+  },
+  "quick_function_agent": {
+    "id": "quick_function_agent",
+    "name": "Quick Function Processor",
+    "description": "Quick processing via function call",
+    "connection_type": "function_call",
+    "module_path": "example_agents.simple_agent",
+    "function_name": "quick_processor",
+    "keywords": [
+      "quick",
+      "fast",
+      "function"
+    ],
+    "patterns": [
+      "quick\\s+(.+)",
+      "fast\\s+(.+)"
+    ],
+    "enabled": true
+  },
+  "data_processor": {
+    "id": "data_processor",
+    "name": "Data Processing Agent",
+    "description": "Processes and transforms various data formats",
+    "connection_type": "python_module",
+    "module_path": "example_agents.simple_agent",
+    "class_name": "DataProcessor",
+    "keywords": [
+      "data",
+      "process",
+      "transform",
+      "convert",
+      "format"
+    ],
+    "patterns": [
+      "process\\s+data",
+      "transform\\s+(.+)",
+      "convert\\s+(.+)"
+    ],
+    "capabilities": {
+      "data_transformation": true,
+      "format_conversion": true,
+      "data_validation": true,
+      "batch_processing": true
+    },
+    "collaboration_roles": [
+      "processor",
+      "transformer"
+    ],
+    "enabled": true,
+    "auto_connect": true
+  },
+  "research_agent": {
+    "id": "research_agent",
+    "name": "Research Assistant Agent",
+    "description": "Conducts research and gathers information",
+    "connection_type": "function_call",
+    "module_path": "sample_agents.researcher",
+    "function_name": "research_topic",
+    "keywords": [
+      "research",
+      "investigate",
+      "gather",
+      "information"
+    ],
+    "patterns": [
+      "research\\s+(.+)",
+      "investigate\\s+(.+)"
+    ],
+    "input_types": [
+      "text"
+    ],
+    "output_types": [
+      "dict"
+    ],
+    "enabled": true,
+    "auto_connect": true
+  },
+  "summary_agent": {
+    "id": "summary_agent",
+    "name": "Document Summary Agent",
+    "description": "Creates summaries of documents and text",
+    "connection_type": "function_call",
+    "module_path": "sample_agents.summarizer",
+    "function_name": "create_summary",
+    "keywords": [
+      "summary",
+      "summarize",
+      "brief",
+      "overview"
+    ],
+    "patterns": [
+      "summary\\s+(.+)",
+      "summarize\\s+(.+)"
+    ],
+    "input_types": [
+      "text"
+    ],
+    "output_types": [
+      "text"
+    ],
+    "enabled": true,
+    "auto_connect": true
+  },
+  "text_analyzer": {
+    "id": "text_analyzer",
+    "name": "Text Analysis Agent",
+    "description": "Analyzes text for sentiment, keywords, and insights",
+    "connection_type": "function_call",
+    "module_path": "sample_agents.text_analyzer",
+    "function_name": "analyze_text",
+    "keywords": [
+      "analyze",
+      "sentiment",
+      "keywords",
+      "insights"
+    ],
+    "patterns": [
+      "analyze\\s+(.+)",
+      "sentiment\\s+(.+)"
+    ],
+    "input_types": [
+      "text"
+    ],
+    "output_types": [
+      "dict"
+    ],
+    "enabled": true,
+    "auto_connect": true
+  },
+  "validation_agent": {
+    "id": "validation_agent",
+    "name": "Validation Agent",
+    "description": "Validates and verifies information accuracy",
+    "connection_type": "python_module",
+    "module_path": "example_agents.simple_agent",
+    "class_name": "SimpleAgent",
+    "init_params": {
+      "agent_name": "Validator"
+    },
+    "keywords": [
+      "validate",
+      "verify",
+      "check",
+      "confirm",
+      "accuracy"
+    ],
+    "patterns": [
+      "validate\\s+(.+)",
+      "verify\\s+(.+)",
+      "check\\s+(.+)"
+    ],
+    "capabilities": {
+      "fact_checking": true,
+      "data_validation": true,
+      "accuracy_verification": true,
+      "quality_assurance": true
+    },
+    "collaboration_roles": [
+      "validator",
+      "checker"
+    ],
+    "enabled": true,
+    "auto_connect": true
+  }
+}

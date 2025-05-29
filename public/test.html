@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Connection Test</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; }
+        .test-result { margin: 10px 0; padding: 10px; border-radius: 5px; }
+        .success { background-color: #d4edda; color: #155724; }
+        .error { background-color: #f8d7da; color: #721c24; }
+        .info { background-color: #d1ecf1; color: #0c5460; }
+        button { padding: 10px 20px; margin: 5px; cursor: pointer; }
+    </style>
+</head>
+<body>
+    <h1>🔧 Frontend-Backend Connection Test</h1>
+    
+    <div id="results"></div>
+    
+    <button onclick="testConnection()">Test Connection</button>
+    <button onclick="testCORS()">Test CORS</button>
+    <button onclick="testFileUpload()">Test File Upload</button>
+    <button onclick="clearResults()">Clear Results</button>
+
+    <script>
+        function addResult(message, type = 'info') {
+            const results = document.getElementById('results');
+            const div = document.createElement('div');
+            div.className = `test-result ${type}`;
+            div.innerHTML = `${new Date().toLocaleTimeString()}: ${message}`;
+            results.appendChild(div);
+        }
+
+        function clearResults() {
+            document.getElementById('results').innerHTML = '';
+        }
+
+        async function testConnection() {
+            addResult('Testing connection to backend...', 'info');
+            
+            try {
+                const response = await fetch('http://localhost:8000/api/health');
+                const data = await response.json();
+                
+                if (response.ok) {
+                    addResult(`✅ Connection successful! Status: ${response.status}`, 'success');
+                    addResult(`✅ MongoDB: ${data.mongodb}`, 'success');
+                    addResult(`✅ Response: ${JSON.stringify(data, null, 2)}`, 'success');
+                } else {
+                    addResult(`❌ Connection failed! Status: ${response.status}`, 'error');
+                }
+            } catch (error) {
+                addResult(`❌ Connection error: ${error.message}`, 'error');
+                addResult(`❌ This might be a CORS issue or server not running`, 'error');
+            }
+        }
+
+        async function testCORS() {
+            addResult('Testing CORS headers...', 'info');
+            
+            try {
+                const response = await fetch('http://localhost:8000/api/health', {
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    }
+                });
+                
+                addResult(`✅ CORS test successful! Status: ${response.status}`, 'success');
+                addResult(`✅ Access-Control-Allow-Origin: ${response.headers.get('access-control-allow-origin') || 'Not set'}`, 'info');
+                
+            } catch (error) {
+                addResult(`❌ CORS test failed: ${error.message}`, 'error');
+            }
+        }
+
+        async function testFileUpload() {
+            addResult('Testing file upload...', 'info');
+            
+            try {
+                const formData = new FormData();
+                formData.append('file', new Blob(['Test file content'], { type: 'text/plain' }), 'test.txt');
+                formData.append('enable_llm', 'false');
+                formData.append('save_to_db', 'true');
+                
+                const response = await fetch('http://localhost:8000/api/process-document', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    addResult(`✅ File upload successful! Status: ${response.status}`, 'success');
+                    addResult(`✅ Filename: ${data.filename}`, 'success');
+                } else {
+                    addResult(`❌ File upload failed! Status: ${response.status}`, 'error');
+                }
+                
+            } catch (error) {
+                addResult(`❌ File upload error: ${error.message}`, 'error');
+            }
+        }
+
+        // Auto-run connection test on page load
+        window.addEventListener('load', function() {
+            addResult('🚀 Starting automatic connection test...', 'info');
+            testConnection();
+        });
+    </script>
+</body>
+</html>

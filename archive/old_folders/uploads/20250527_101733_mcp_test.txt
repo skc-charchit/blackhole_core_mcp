@@ -1,0 +1,12 @@
+
+        BlackHole Core MCP Test Document
+        
+        This document is being processed by the BlackHole Core MCP system
+        using the user's existing credentials:
+        - MongoDB Atlas for data storage
+        - Together.ai API for LLM processing
+        - All multimodal processing capabilities
+        
+        The system demonstrates true Model Context Protocol functionality
+        where user commands are intelligently routed to appropriate agents.
+        

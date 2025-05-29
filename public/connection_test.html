@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Connection Test - BlackHole Core MCP</title>
+    <style>
+        body { 
+            font-family: Arial, sans-serif; 
+            padding: 20px; 
+            background: #f5f5f5; 
+        }
+        .container { 
+            max-width: 800px; 
+            margin: 0 auto; 
+            background: white; 
+            padding: 30px; 
+            border-radius: 10px; 
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1); 
+        }
+        .test-result { 
+            margin: 10px 0; 
+            padding: 15px; 
+            border-radius: 5px; 
+            font-family: monospace;
+        }
+        .success { background-color: #d4edda; color: #155724; }
+        .error { background-color: #f8d7da; color: #721c24; }
+        .info { background-color: #d1ecf1; color: #0c5460; }
+        button { 
+            background: #007bff; 
+            color: white; 
+            border: none; 
+            padding: 12px 24px; 
+            margin: 8px; 
+            border-radius: 5px; 
+            cursor: pointer; 
+            font-size: 16px;
+        }
+        button:hover { background: #0056b3; }
+        .loading { opacity: 0.6; pointer-events: none; }
+        pre { background: #f8f9fa; padding: 10px; border-radius: 3px; overflow-x: auto; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔧 Backend Connection Test</h1>
+        <p>This page will test the connection between frontend and backend.</p>
+        
+        <div id="results"></div>
+        
+        <button onclick="testConnection()" id="testBtn">Test Connection</button>
+        <button onclick="testCORS()">Test CORS</button>
+        <button onclick="testFileUpload()">Test File Upload</button>
+        <button onclick="clearResults()">Clear Results</button>
+    </div>
+
+    <script>
+        function addResult(message, type = 'info', details = '') {
+            const results = document.getElementById('results');
+            const div = document.createElement('div');
+            div.className = `test-result ${type}`;
+            div.innerHTML = `
+                <strong>${new Date().toLocaleTimeString()}: ${message}</strong>
+                ${details ? `<pre>${details}</pre>` : ''}
+            `;
+            results.appendChild(div);
+            results.scrollTop = results.scrollHeight;
+        }
+
+        function clearResults() {
+            document.getElementById('results').innerHTML = '';
+        }
+
+        function setLoading(loading) {
+            const btn = document.getElementById('testBtn');
+            if (loading) {
+                btn.textContent = 'Testing...';
+                btn.classList.add('loading');
+            } else {
+                btn.textContent = 'Test Connection';
+                btn.classList.remove('loading');
+            }
+        }
+
+        async function testConnection() {
+            addResult('🔍 Testing backend connection...', 'info');
+            setLoading(true);
+            
+            try {
+                console.log('Making request to http://localhost:8000/api/health');
+                
+                const response = await fetch('http://localhost:8000/api/health', {
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json'
+                    },
+                    mode: 'cors'
+                });
+                
+                console.log('Response received:', response);
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+                
+                const data = await response.json();
+                console.log('Response data:', data);
+                
+                addResult('✅ Connection successful!', 'success', 
+                    `Status: ${response.status}\n` +
+                    `MongoDB: ${data.mongodb}\n` +
+                    `Timestamp: ${data.timestamp}\n` +
+                    `Full response: ${JSON.stringify(data, null, 2)}`
+                );
+                
+            } catch (error) {
+                console.error('Connection error:', error);
+                
+                addResult('❌ Connection failed!', 'error', 
+                    `Error: ${error.message}\n` +
+                    `Type: ${error.name}\n` +
+                    `Stack: ${error.stack}`
+                );
+                
+                // Additional troubleshooting info
+                addResult('🔧 Troubleshooting:', 'info',
+                    `1. Check if server is running: http://localhost:8000/api/health\n` +
+                    `2. Check browser console for CORS errors\n` +
+                    `3. Verify server is listening on port 8000\n` +
+                    `4. Try refreshing the page`
+                );
+            } finally {
+                setLoading(false);
+            }
+        }
+
+        async function testCORS() {
+            addResult('🌐 Testing CORS configuration...', 'info');
+            
+            try {
+                const response = await fetch('http://localhost:8000/api/health', {
+                    method: 'OPTIONS'
+                });
+                
+                const corsInfo = {
+                    'Access-Control-Allow-Origin': response.headers.get('access-control-allow-origin'),
+                    'Access-Control-Allow-Methods': response.headers.get('access-control-allow-methods'),
+                    'Access-Control-Allow-Headers': response.headers.get('access-control-allow-headers'),
+                    'Status': response.status
+                };
+                
+                addResult('✅ CORS test completed', 'success', JSON.stringify(corsInfo, null, 2));
+                
+            } catch (error) {
+                addResult('❌ CORS test failed', 'error', error.message);
+            }
+        }
+
+        async function testFileUpload() {
+            addResult('📄 Testing file upload...', 'info');
+            
+            try {
+                const formData = new FormData();
+                formData.append('file', new Blob(['Test file content for connection test'], { type: 'text/plain' }), 'connection-test.txt');
+                formData.append('enable_llm', 'false');
+                formData.append('save_to_db', 'true');
+                
+                const response = await fetch('http://localhost:8000/api/process-document', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    addResult('✅ File upload successful!', 'success', JSON.stringify(data, null, 2));
+                } else {
+                    addResult('❌ File upload failed', 'error', `Status: ${response.status}`);
+                }
+                
+            } catch (error) {
+                addResult('❌ File upload error', 'error', error.message);
+            }
+        }
+
+        // Auto-run test on page load
+        window.addEventListener('load', function() {
+            addResult('🚀 Page loaded, starting automatic test...', 'info');
+            setTimeout(testConnection, 1000);
+        });
+    </script>
+</body>
+</html>

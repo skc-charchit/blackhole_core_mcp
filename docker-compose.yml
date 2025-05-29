@@ -1,0 +1,103 @@
+version: '3.8'
+
+services:
+  # MongoDB Database
+  mongodb:
+    image: mongo:7.0
+    container_name: blackhole_mongodb
+    restart: unless-stopped
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: admin
+      MONGO_INITDB_ROOT_PASSWORD: blackhole_admin_2024
+      MONGO_INITDB_DATABASE: blackhole_db
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongodb_data:/data/db
+      - ./docker/mongodb/init-mongo.js:/docker-entrypoint-initdb.d/init-mongo.js:ro
+    networks:
+      - blackhole_network
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # BlackHole Core MCP Application
+  blackhole_app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: blackhole_app
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    environment:
+      # MongoDB Configuration
+      MONGODB_URI: mongodb://blackhole_user:blackhole_pass_2024@mongodb:27017/blackhole_db?authSource=blackhole_db
+      MONGO_DB_NAME: blackhole_db
+      MONGO_COLLECTION_NAME: agent_outputs
+      
+      # Application Settings
+      DEBUG: "false"
+      PORT: "8000"
+      HOST: "0.0.0.0"
+      
+      # LLM Settings (override with your actual API key)
+      TOGETHER_API_KEY: ${TOGETHER_API_KEY:-your_together_ai_api_key_here}
+      TOGETHER_MODEL_NAME: deepseek-ai/DeepSeek-V3
+      TOGETHER_EMBEDDING_MODEL: togethercomputer/m2-bert-80M-8k-retrieval
+      LLM_TEMPERATURE: "0.7"
+      LLM_MAX_TOKENS: "2048"
+      LLM_MEMORY_K: "5"
+      CHUNK_SIZE: "500"
+      CHUNK_OVERLAP: "50"
+      
+      # Tesseract OCR (already installed in container)
+      TESSERACT_CMD: tesseract
+    volumes:
+      - ./data/multimodal/uploaded_pdfs:/app/data/multimodal/uploaded_pdfs
+      - ./data/multimodal/uploaded_images:/app/data/multimodal/uploaded_images
+      - ./data/multimodal/processed_outputs:/app/data/multimodal/processed_outputs
+      - ./uploads:/app/uploads
+      - ./logs:/app/logs
+    depends_on:
+      mongodb:
+        condition: service_healthy
+    networks:
+      - blackhole_network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+  # MongoDB Express (Web UI for MongoDB)
+  mongo_express:
+    image: mongo-express:1.0.2
+    container_name: blackhole_mongo_express
+    restart: unless-stopped
+    ports:
+      - "8081:8081"
+    environment:
+      ME_CONFIG_MONGODB_ADMINUSERNAME: admin
+      ME_CONFIG_MONGODB_ADMINPASSWORD: blackhole_admin_2024
+      ME_CONFIG_MONGODB_URL: mongodb://admin:blackhole_admin_2024@mongodb:27017/
+      ME_CONFIG_BASICAUTH_USERNAME: admin
+      ME_CONFIG_BASICAUTH_PASSWORD: blackhole_admin_2024
+      ME_CONFIG_MONGODB_ENABLE_ADMIN: "true"
+    depends_on:
+      mongodb:
+        condition: service_healthy
+    networks:
+      - blackhole_network
+
+volumes:
+  mongodb_data:
+    driver: local
+
+networks:
+  blackhole_network:
+    driver: bridge

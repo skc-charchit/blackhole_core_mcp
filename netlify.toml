@@ -73,7 +73,7 @@
 
 [[redirects]]
   from = "/*"
-  to = "/simplified-index.html"
+  to = "/index.html"
   status = 200
 
 # Headers to enable CORS

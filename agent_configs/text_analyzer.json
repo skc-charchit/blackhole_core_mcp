@@ -1,0 +1,35 @@
+{
+  "id": "text_analyzer",
+  "name": "Text Analysis Agent",
+  "description": "Advanced text analysis and NLP processing",
+  "connection_type": "python_module",
+  "module_path": "example_agents.simple_agent",
+  "class_name": "SimpleAgent",
+  "init_params": {
+    "agent_name": "TextAnalyzer"
+  },
+  "keywords": [
+    "analyze",
+    "text",
+    "nlp",
+    "sentiment",
+    "language"
+  ],
+  "patterns": [
+    "analyze\\s+(.+)",
+    "sentiment\\s+(.+)",
+    "text\\s+analysis"
+  ],
+  "capabilities": {
+    "text_processing": true,
+    "sentiment_analysis": true,
+    "language_detection": true,
+    "keyword_extraction": true
+  },
+  "collaboration_roles": [
+    "analyzer",
+    "processor"
+  ],
+  "enabled": true,
+  "auto_connect": true
+}

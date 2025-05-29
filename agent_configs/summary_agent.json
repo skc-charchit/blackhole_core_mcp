@@ -1,0 +1,32 @@
+{
+  "id": "summary_agent",
+  "name": "Summary Agent",
+  "description": "Creates summaries and extracts key insights",
+  "connection_type": "function_call",
+  "module_path": "example_agents.simple_agent",
+  "function_name": "quick_processor",
+  "keywords": [
+    "summary",
+    "summarize",
+    "key points",
+    "insights",
+    "overview"
+  ],
+  "patterns": [
+    "summarize\\s+(.+)",
+    "summary\\s+of\\s+(.+)",
+    "key\\s+points"
+  ],
+  "capabilities": {
+    "text_summarization": true,
+    "key_point_extraction": true,
+    "insight_generation": true,
+    "content_condensation": true
+  },
+  "collaboration_roles": [
+    "summarizer",
+    "synthesizer"
+  ],
+  "enabled": true,
+  "auto_connect": true
+}

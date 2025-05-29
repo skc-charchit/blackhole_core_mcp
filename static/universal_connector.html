@@ -1,0 +1,571 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BlackHole Core MCP - Universal Agent Connector</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            color: #333;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+            color: white;
+        }
+
+        .header h1 {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+
+        .header .subtitle {
+            font-size: 1.2rem;
+            opacity: 0.9;
+            margin-bottom: 20px;
+        }
+
+        .usb-icon {
+            font-size: 3rem;
+            margin-bottom: 20px;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.1); }
+            100% { transform: scale(1); }
+        }
+
+        .main-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .card {
+            background: white;
+            border-radius: 15px;
+            padding: 25px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+
+        .card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 15px 40px rgba(0,0,0,0.15);
+        }
+
+        .card-header {
+            display: flex;
+            align-items: center;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 2px solid #f0f0f0;
+        }
+
+        .card-header i {
+            font-size: 1.5rem;
+            margin-right: 10px;
+            color: #667eea;
+        }
+
+        .card-header h3 {
+            font-size: 1.3rem;
+            color: #333;
+        }
+
+        .chat-container {
+            height: 400px;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .chat-messages {
+            flex: 1;
+            overflow-y: auto;
+            border: 1px solid #e0e0e0;
+            border-radius: 10px;
+            padding: 15px;
+            margin-bottom: 15px;
+            background: #f9f9f9;
+        }
+
+        .message {
+            margin-bottom: 15px;
+            padding: 10px;
+            border-radius: 10px;
+            max-width: 80%;
+        }
+
+        .user-message {
+            background: #667eea;
+            color: white;
+            margin-left: auto;
+            text-align: right;
+        }
+
+        .assistant-message {
+            background: white;
+            border: 1px solid #e0e0e0;
+            margin-right: auto;
+        }
+
+        .message-meta {
+            font-size: 0.8rem;
+            opacity: 0.7;
+            margin-top: 5px;
+        }
+
+        .chat-input-container {
+            display: flex;
+            gap: 10px;
+        }
+
+        .chat-input {
+            flex: 1;
+            padding: 12px;
+            border: 1px solid #ddd;
+            border-radius: 25px;
+            font-size: 1rem;
+            outline: none;
+            transition: border-color 0.3s ease;
+        }
+
+        .chat-input:focus {
+            border-color: #667eea;
+        }
+
+        .send-btn {
+            padding: 12px 20px;
+            background: #667eea;
+            color: white;
+            border: none;
+            border-radius: 25px;
+            cursor: pointer;
+            font-size: 1rem;
+            transition: background 0.3s ease;
+        }
+
+        .send-btn:hover {
+            background: #5a6fd8;
+        }
+
+        .send-btn:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+
+        .agents-list {
+            max-height: 400px;
+            overflow-y: auto;
+        }
+
+        .agent-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 15px;
+            margin-bottom: 10px;
+            background: #f8f9fa;
+            border-radius: 10px;
+            border-left: 4px solid #667eea;
+            transition: all 0.3s ease;
+        }
+
+        .agent-item:hover {
+            background: #e9ecef;
+            transform: translateX(5px);
+        }
+
+        .agent-info h4 {
+            margin-bottom: 5px;
+            color: #333;
+        }
+
+        .agent-info p {
+            font-size: 0.9rem;
+            color: #666;
+            margin-bottom: 5px;
+        }
+
+        .agent-status {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .status-badge {
+            padding: 4px 8px;
+            border-radius: 15px;
+            font-size: 0.8rem;
+            font-weight: bold;
+        }
+
+        .status-connected {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .status-disconnected {
+            background: #f8d7da;
+            color: #721c24;
+        }
+
+        .agent-actions {
+            display: flex;
+            gap: 5px;
+        }
+
+        .btn-small {
+            padding: 5px 10px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 0.8rem;
+            transition: all 0.3s ease;
+        }
+
+        .btn-enable {
+            background: #28a745;
+            color: white;
+        }
+
+        .btn-disable {
+            background: #dc3545;
+            color: white;
+        }
+
+        .btn-remove {
+            background: #6c757d;
+            color: white;
+        }
+
+        .btn-small:hover {
+            opacity: 0.8;
+            transform: scale(1.05);
+        }
+
+        .full-width-card {
+            grid-column: 1 / -1;
+        }
+
+        .register-form {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .form-group {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .form-group.full-width {
+            grid-column: 1 / -1;
+        }
+
+        .form-group label {
+            margin-bottom: 5px;
+            font-weight: bold;
+            color: #333;
+        }
+
+        .form-group input,
+        .form-group select,
+        .form-group textarea {
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            font-size: 1rem;
+            outline: none;
+            transition: border-color 0.3s ease;
+        }
+
+        .form-group input:focus,
+        .form-group select:focus,
+        .form-group textarea:focus {
+            border-color: #667eea;
+        }
+
+        .register-btn {
+            grid-column: 1 / -1;
+            padding: 12px;
+            background: #28a745;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 1rem;
+            transition: background 0.3s ease;
+        }
+
+        .register-btn:hover {
+            background: #218838;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .stat-card {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            padding: 20px;
+            border-radius: 10px;
+            text-align: center;
+        }
+
+        .stat-number {
+            font-size: 2rem;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+
+        .stat-label {
+            font-size: 0.9rem;
+            opacity: 0.9;
+        }
+
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #667eea;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .notification {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            padding: 15px 20px;
+            border-radius: 5px;
+            color: white;
+            font-weight: bold;
+            z-index: 1000;
+            transform: translateX(400px);
+            transition: transform 0.3s ease;
+        }
+
+        .notification.show {
+            transform: translateX(0);
+        }
+
+        .notification.success {
+            background: #28a745;
+        }
+
+        .notification.error {
+            background: #dc3545;
+        }
+
+        .notification.info {
+            background: #17a2b8;
+        }
+
+        .templates-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 15px;
+        }
+
+        .template-card {
+            background: #f8f9fa;
+            border: 1px solid #e9ecef;
+            border-radius: 10px;
+            padding: 15px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .template-card:hover {
+            background: #e9ecef;
+            border-color: #667eea;
+        }
+
+        .template-card h4 {
+            color: #667eea;
+            margin-bottom: 10px;
+        }
+
+        .template-card p {
+            color: #666;
+            font-size: 0.9rem;
+        }
+
+        @media (max-width: 768px) {
+            .main-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .register-form {
+                grid-template-columns: 1fr;
+            }
+            
+            .header h1 {
+                font-size: 2rem;
+            }
+            
+            .container {
+                padding: 10px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div class="usb-icon">🔌</div>
+            <h1>BlackHole Core MCP</h1>
+            <div class="subtitle">Universal Agent Connector - USB-like Interface for Any Agent</div>
+        </div>
+
+        <!-- Statistics -->
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="stat-number" id="totalAgents">0</div>
+                <div class="stat-label">Total Agents</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number" id="connectedAgents">0</div>
+                <div class="stat-label">Connected</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number" id="totalMessages">0</div>
+                <div class="stat-label">Messages Processed</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number" id="avgResponseTime">0ms</div>
+                <div class="stat-label">Avg Response Time</div>
+            </div>
+        </div>
+
+        <div class="main-grid">
+            <!-- Chat Interface -->
+            <div class="card">
+                <div class="card-header">
+                    <i class="fas fa-comments"></i>
+                    <h3>Universal Chat Interface</h3>
+                </div>
+                <div class="chat-container">
+                    <div class="chat-messages" id="chatMessages">
+                        <div class="message assistant-message">
+                            <div>👋 Welcome to BlackHole Core MCP! I can connect to any of your external agents automatically. Just ask me anything!</div>
+                            <div class="message-meta">System • Just now</div>
+                        </div>
+                    </div>
+                    <div class="chat-input-container">
+                        <input type="text" class="chat-input" id="chatInput" placeholder="Ask anything... I'll route it to the right agent automatically">
+                        <button class="send-btn" id="sendBtn">
+                            <i class="fas fa-paper-plane"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Connected Agents -->
+            <div class="card">
+                <div class="card-header">
+                    <i class="fas fa-plug"></i>
+                    <h3>Connected Agents</h3>
+                </div>
+                <div class="agents-list" id="agentsList">
+                    <div style="text-align: center; color: #666; padding: 20px;">
+                        <div class="loading"></div>
+                        <div style="margin-top: 10px;">Loading agents...</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Agent Registration -->
+        <div class="card full-width-card">
+            <div class="card-header">
+                <i class="fas fa-plus-circle"></i>
+                <h3>Register New Agent</h3>
+            </div>
+            
+            <!-- Templates -->
+            <div style="margin-bottom: 20px;">
+                <h4 style="margin-bottom: 10px;">Quick Templates:</h4>
+                <div class="templates-grid" id="templatesGrid">
+                    <!-- Templates will be loaded here -->
+                </div>
+            </div>
+
+            <form class="register-form" id="registerForm">
+                <div class="form-group">
+                    <label for="agentId">Agent ID</label>
+                    <input type="text" id="agentId" name="agentId" required placeholder="my_agent_id">
+                </div>
+                <div class="form-group">
+                    <label for="agentName">Agent Name</label>
+                    <input type="text" id="agentName" name="agentName" required placeholder="My Agent Name">
+                </div>
+                <div class="form-group">
+                    <label for="connectionType">Connection Type</label>
+                    <select id="connectionType" name="connectionType" required>
+                        <option value="">Select connection type</option>
+                        <option value="http_api">HTTP API</option>
+                        <option value="python_module">Python Module</option>
+                        <option value="function_call">Function Call</option>
+                        <option value="websocket">WebSocket</option>
+                        <option value="grpc">gRPC</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="keywords">Keywords (comma-separated)</label>
+                    <input type="text" id="keywords" name="keywords" placeholder="keyword1, keyword2, keyword3">
+                </div>
+                <div class="form-group full-width">
+                    <label for="description">Description</label>
+                    <textarea id="description" name="description" rows="2" placeholder="What does your agent do?"></textarea>
+                </div>
+                
+                <!-- Dynamic fields based on connection type -->
+                <div id="dynamicFields"></div>
+                
+                <button type="submit" class="register-btn">
+                    <i class="fas fa-plug"></i> Connect Agent
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Notification container -->
+    <div id="notification" class="notification"></div>
+
+    <script src="universal_connector.js"></script>
+</body>
+</html>

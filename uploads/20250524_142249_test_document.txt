@@ -1,0 +1,22 @@
+BlackHole Core MCP Test Document
+
+This is a test document for the BlackHole Core MCP system.
+
+Features being tested:
+1. Document upload and processing
+2. MongoDB storage and retrieval
+3. LLM integration for question answering
+4. Organized file storage system
+5. API endpoint functionality
+
+The system includes:
+- Multi-agent architecture
+- Enhanced PDF processing with LLM
+- Advanced image OCR with Tesseract
+- MongoDB Atlas cloud database integration
+- FastAPI backend with comprehensive endpoints
+- Organized file storage in multimodal folders
+
+This document will be processed and stored in the organized storage system.
+
+Test completed successfully!

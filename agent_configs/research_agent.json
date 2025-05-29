@@ -1,0 +1,32 @@
+{
+  "id": "research_agent",
+  "name": "Research Agent",
+  "description": "Conducts comprehensive research and information gathering",
+  "connection_type": "function_call",
+  "module_path": "example_agents.simple_agent",
+  "function_name": "advanced_processor",
+  "keywords": [
+    "research",
+    "investigate",
+    "gather",
+    "information",
+    "study"
+  ],
+  "patterns": [
+    "research\\s+(.+)",
+    "investigate\\s+(.+)",
+    "study\\s+(.+)"
+  ],
+  "capabilities": {
+    "information_gathering": true,
+    "source_verification": true,
+    "comprehensive_analysis": true,
+    "report_generation": true
+  },
+  "collaboration_roles": [
+    "researcher",
+    "investigator"
+  ],
+  "enabled": true,
+  "auto_connect": true
+}

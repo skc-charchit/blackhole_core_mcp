@@ -1,0 +1,35 @@
+{
+  "id": "validation_agent",
+  "name": "Validation Agent",
+  "description": "Validates and verifies information accuracy",
+  "connection_type": "python_module",
+  "module_path": "example_agents.simple_agent",
+  "class_name": "SimpleAgent",
+  "init_params": {
+    "agent_name": "Validator"
+  },
+  "keywords": [
+    "validate",
+    "verify",
+    "check",
+    "confirm",
+    "accuracy"
+  ],
+  "patterns": [
+    "validate\\s+(.+)",
+    "verify\\s+(.+)",
+    "check\\s+(.+)"
+  ],
+  "capabilities": {
+    "fact_checking": true,
+    "data_validation": true,
+    "accuracy_verification": true,
+    "quality_assurance": true
+  },
+  "collaboration_roles": [
+    "validator",
+    "checker"
+  ],
+  "enabled": true,
+  "auto_connect": true
+}

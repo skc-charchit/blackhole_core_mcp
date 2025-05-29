@@ -1,0 +1,837 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BlackHole Core MCP - Command Interface</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: rgba(255,255,255,0.1);
+            border-radius: 20px;
+            padding: 30px;
+            backdrop-filter: blur(10px);
+            box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 40px;
+        }
+
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+            background: linear-gradient(45deg, #fff, #f0f0f0);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .command-interface {
+            display: grid;
+            grid-template-columns: 1fr 400px 400px;
+            gap: 30px;
+            margin-bottom: 30px;
+        }
+
+        .command-input-section {
+            background: rgba(255,255,255,0.1);
+            border-radius: 15px;
+            padding: 25px;
+        }
+
+        .command-input {
+            width: 100%;
+            padding: 15px;
+            border: none;
+            border-radius: 10px;
+            background: rgba(255,255,255,0.2);
+            color: white;
+            font-size: 16px;
+            margin-bottom: 15px;
+            backdrop-filter: blur(5px);
+        }
+
+        .command-input::placeholder {
+            color: rgba(255,255,255,0.7);
+        }
+
+        .command-buttons {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .btn-primary {
+            background: linear-gradient(45deg, #28a745, #20c997);
+            color: white;
+        }
+
+        .btn-secondary {
+            background: linear-gradient(45deg, #6c757d, #495057);
+            color: white;
+        }
+
+        .btn-info {
+            background: linear-gradient(45deg, #17a2b8, #138496);
+            color: white;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+        }
+
+        .status-panel {
+            background: rgba(255,255,255,0.1);
+            border-radius: 15px;
+            padding: 25px;
+        }
+
+        .status-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px 0;
+            border-bottom: 1px solid rgba(255,255,255,0.2);
+        }
+
+        .status-item:last-child {
+            border-bottom: none;
+        }
+
+        .status-indicator {
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: bold;
+        }
+
+        .status-online {
+            background: #28a745;
+            color: white;
+        }
+
+        .status-offline {
+            background: #dc3545;
+            color: white;
+        }
+
+        .results-section {
+            background: rgba(255,255,255,0.1);
+            border-radius: 15px;
+            padding: 25px;
+            margin-top: 30px;
+        }
+
+        .result-item {
+            background: rgba(255,255,255,0.1);
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 15px;
+            border-left: 4px solid #28a745;
+        }
+
+        .result-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+
+        .result-command {
+            font-weight: bold;
+            color: #ffd700;
+        }
+
+        .result-timestamp {
+            font-size: 12px;
+            opacity: 0.8;
+        }
+
+        .result-content {
+            background: rgba(0,0,0,0.2);
+            border-radius: 8px;
+            padding: 15px;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+            white-space: pre-wrap;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+
+        .loading {
+            display: none;
+            text-align: center;
+            padding: 20px;
+        }
+
+        .spinner {
+            border: 3px solid rgba(255,255,255,0.3);
+            border-radius: 50%;
+            border-top: 3px solid white;
+            width: 30px;
+            height: 30px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 10px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .examples {
+            margin-top: 15px;
+        }
+
+        .example-command {
+            background: rgba(255,255,255,0.1);
+            border-radius: 5px;
+            padding: 8px 12px;
+            margin: 5px 0;
+            cursor: pointer;
+            font-size: 14px;
+            transition: background 0.3s ease;
+        }
+
+        .example-command:hover {
+            background: rgba(255,255,255,0.2);
+        }
+
+        .file-upload-section {
+            background: rgba(255,255,255,0.1);
+            border-radius: 15px;
+            padding: 25px;
+        }
+
+        .file-drop-zone {
+            border: 2px dashed rgba(255,255,255,0.5);
+            border-radius: 10px;
+            padding: 30px;
+            text-align: center;
+            margin-bottom: 15px;
+            transition: all 0.3s ease;
+            cursor: pointer;
+            min-height: 120px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .file-drop-zone:hover {
+            border-color: rgba(255,255,255,0.8);
+            background: rgba(255,255,255,0.05);
+        }
+
+        .file-drop-zone.dragover {
+            border-color: #28a745;
+            background: rgba(40, 167, 69, 0.1);
+        }
+
+        .file-input {
+            display: none;
+        }
+
+        .file-info {
+            margin-top: 15px;
+            padding: 10px;
+            background: rgba(255,255,255,0.1);
+            border-radius: 8px;
+            font-size: 14px;
+        }
+
+        .processing-options {
+            margin: 15px 0;
+        }
+
+        .checkbox-group {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            margin: 10px 0;
+        }
+
+        .checkbox-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .checkbox-item input[type="checkbox"] {
+            width: 16px;
+            height: 16px;
+        }
+
+        .checkbox-item label {
+            font-size: 14px;
+            cursor: pointer;
+        }
+
+        .upload-progress {
+            display: none;
+            margin: 15px 0;
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 8px;
+            background: rgba(255,255,255,0.2);
+            border-radius: 4px;
+            overflow: hidden;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(45deg, #28a745, #20c997);
+            width: 0%;
+            transition: width 0.3s ease;
+        }
+
+        @media (max-width: 1200px) {
+            .command-interface {
+                grid-template-columns: 1fr;
+                gap: 20px;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .command-interface {
+                grid-template-columns: 1fr;
+            }
+
+            .container {
+                padding: 20px;
+            }
+
+            .header h1 {
+                font-size: 2em;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🕳️ BlackHole Core MCP</h1>
+            <p>Model Context Protocol - Intelligent Command Processing</p>
+        </div>
+
+        <div class="command-interface">
+            <div class="command-input-section">
+                <h3>💬 Command Interface</h3>
+                <input
+                    type="text"
+                    id="commandInput"
+                    class="command-input"
+                    placeholder="Enter your command in natural language..."
+                    onkeypress="handleKeyPress(event)"
+                >
+
+                <div class="command-buttons">
+                    <button class="btn btn-primary" onclick="processCommand()">Execute Command</button>
+                    <button class="btn btn-secondary" onclick="clearResults()">Clear Results</button>
+                    <button class="btn btn-info" onclick="showHelp()">Show Help</button>
+                    <button class="btn btn-info" onclick="refreshStatus()">Refresh Status</button>
+                </div>
+
+                <div class="examples">
+                    <h4>💡 Example Commands:</h4>
+                    <div class="example-command" onclick="setCommand('search for documents about AI')">
+                        🔍 search for documents about AI
+                    </div>
+                    <div class="example-command" onclick="setCommand('get live weather data')">
+                        🌤️ get live weather data
+                    </div>
+                    <div class="example-command" onclick="setCommand('find information about machine learning')">
+                        📚 find information about machine learning
+                    </div>
+                    <div class="example-command" onclick="setCommand('help')">
+                        ❓ help
+                    </div>
+                </div>
+            </div>
+
+            <div class="status-panel">
+                <h3>📊 System Status</h3>
+                <div id="systemStatus">
+                    <div class="status-item">
+                        <span>Server</span>
+                        <span class="status-indicator" id="serverStatus">Checking...</span>
+                    </div>
+                    <div class="status-item">
+                        <span>MongoDB</span>
+                        <span class="status-indicator" id="mongoStatus">Checking...</span>
+                    </div>
+                    <div class="status-item">
+                        <span>Archive Agent</span>
+                        <span class="status-indicator" id="archiveStatus">Checking...</span>
+                    </div>
+                    <div class="status-item">
+                        <span>Live Data Agent</span>
+                        <span class="status-indicator" id="liveDataStatus">Checking...</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="file-upload-section">
+                <h3>📁 File Upload & Processing</h3>
+
+                <div class="file-drop-zone" id="fileDropZone" onclick="document.getElementById('fileInput').click()">
+                    <div>
+                        <p style="font-size: 18px; margin-bottom: 10px;">📁 Drop files here or click to browse</p>
+                        <p style="font-size: 14px; opacity: 0.8;">Supports: PDF, Images (PNG, JPG), Text files, Office docs</p>
+                    </div>
+                </div>
+
+                <input type="file" id="fileInput" class="file-input" multiple accept=".pdf,.png,.jpg,.jpeg,.bmp,.tiff,.txt,.doc,.docx,.ppt,.pptx,.xls,.xlsx">
+
+                <div id="fileInfo" class="file-info" style="display: none;">
+                    <p><strong>Selected Files:</strong></p>
+                    <div id="fileList"></div>
+                </div>
+
+                <div class="processing-options">
+                    <h4>🔧 Processing Options:</h4>
+                    <div class="checkbox-group">
+                        <div class="checkbox-item">
+                            <input type="checkbox" id="enableLLM" checked>
+                            <label for="enableLLM">🤖 Enable LLM Analysis (Together.ai)</label>
+                        </div>
+                        <div class="checkbox-item">
+                            <input type="checkbox" id="saveToDb" checked>
+                            <label for="saveToDb">💾 Save to MongoDB</label>
+                        </div>
+                        <div class="checkbox-item">
+                            <input type="checkbox" id="enableOCR" checked>
+                            <label for="enableOCR">👁️ Enable OCR for Images</label>
+                        </div>
+                        <div class="checkbox-item">
+                            <input type="checkbox" id="generateSummary">
+                            <label for="generateSummary">📝 Generate Summary</label>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="command-buttons">
+                    <button class="btn btn-primary" onclick="uploadFiles()" id="uploadBtn" disabled>📤 Upload & Process</button>
+                    <button class="btn btn-secondary" onclick="clearFiles()">🗑️ Clear Files</button>
+                    <button class="btn btn-info" onclick="showUploadHistory()">📋 Upload History</button>
+                </div>
+
+                <div class="upload-progress" id="uploadProgress">
+                    <p>Processing files...</p>
+                    <div class="progress-bar">
+                        <div class="progress-fill" id="progressFill"></div>
+                    </div>
+                    <p id="progressText">0%</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="loading" id="loadingIndicator">
+            <div class="spinner"></div>
+            <p>Processing command...</p>
+        </div>
+
+        <div class="results-section">
+            <h3>📋 Command Results</h3>
+            <div id="resultsContainer">
+                <p style="text-align: center; opacity: 0.7;">No commands executed yet. Try entering a command above!</p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Global variables
+        let commandHistory = [];
+        let selectedFiles = [];
+
+        // Initialize the interface
+        document.addEventListener('DOMContentLoaded', function() {
+            refreshStatus();
+            initializeFileUpload();
+        });
+
+        function handleKeyPress(event) {
+            if (event.key === 'Enter') {
+                processCommand();
+            }
+        }
+
+        function setCommand(command) {
+            document.getElementById('commandInput').value = command;
+        }
+
+        async function processCommand() {
+            const commandInput = document.getElementById('commandInput');
+            const command = commandInput.value.trim();
+
+            if (!command) {
+                alert('Please enter a command');
+                return;
+            }
+
+            showLoading(true);
+
+            try {
+                const response = await fetch('/api/mcp/command', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ command: command })
+                });
+
+                const result = await response.json();
+
+                displayResult(command, result);
+                commandHistory.unshift({ command, result, timestamp: new Date() });
+
+                // Clear input
+                commandInput.value = '';
+
+            } catch (error) {
+                displayError(command, error.message);
+            } finally {
+                showLoading(false);
+            }
+        }
+
+        function displayResult(command, result) {
+            const container = document.getElementById('resultsContainer');
+
+            // Clear "no commands" message
+            if (container.innerHTML.includes('No commands executed yet')) {
+                container.innerHTML = '';
+            }
+
+            const resultElement = document.createElement('div');
+            resultElement.className = 'result-item';
+
+            const timestamp = new Date().toLocaleTimeString();
+            const status = result.status || 'unknown';
+            const borderColor = status === 'success' ? '#28a745' : '#dc3545';
+
+            resultElement.style.borderLeftColor = borderColor;
+
+            resultElement.innerHTML = `
+                <div class="result-header">
+                    <span class="result-command">${command}</span>
+                    <span class="result-timestamp">${timestamp}</span>
+                </div>
+                <div class="result-content">${JSON.stringify(result, null, 2)}</div>
+            `;
+
+            container.insertBefore(resultElement, container.firstChild);
+        }
+
+        function displayError(command, error) {
+            const result = {
+                status: 'error',
+                error: error,
+                timestamp: new Date().toISOString()
+            };
+            displayResult(command, result);
+        }
+
+        async function showHelp() {
+            showLoading(true);
+
+            try {
+                const response = await fetch('/api/mcp/help');
+                const helpData = await response.json();
+
+                displayResult('help', helpData);
+
+            } catch (error) {
+                displayError('help', error.message);
+            } finally {
+                showLoading(false);
+            }
+        }
+
+        async function refreshStatus() {
+            try {
+                // Check server health
+                const healthResponse = await fetch('/api/health');
+                const healthData = await healthResponse.json();
+
+                updateStatusIndicator('serverStatus', healthData.status === 'ok');
+                updateStatusIndicator('mongoStatus', healthData.mongodb === 'connected');
+
+                // Check MCP agent status
+                const mcpResponse = await fetch('/api/mcp/status');
+                const mcpData = await mcpResponse.json();
+
+                updateStatusIndicator('archiveStatus', mcpData.agents?.archive_search?.status === 'available');
+                updateStatusIndicator('liveDataStatus', mcpData.agents?.live_data?.status === 'available');
+
+            } catch (error) {
+                console.error('Error refreshing status:', error);
+                updateStatusIndicator('serverStatus', false);
+                updateStatusIndicator('mongoStatus', false);
+                updateStatusIndicator('archiveStatus', false);
+                updateStatusIndicator('liveDataStatus', false);
+            }
+        }
+
+        function updateStatusIndicator(elementId, isOnline) {
+            const element = document.getElementById(elementId);
+            if (isOnline) {
+                element.textContent = 'Online';
+                element.className = 'status-indicator status-online';
+            } else {
+                element.textContent = 'Offline';
+                element.className = 'status-indicator status-offline';
+            }
+        }
+
+        function showLoading(show) {
+            const loadingIndicator = document.getElementById('loadingIndicator');
+            loadingIndicator.style.display = show ? 'block' : 'none';
+        }
+
+        function clearResults() {
+            const container = document.getElementById('resultsContainer');
+            container.innerHTML = '<p style="text-align: center; opacity: 0.7;">No commands executed yet. Try entering a command above!</p>';
+            commandHistory = [];
+        }
+
+        // File Upload Functions
+        function initializeFileUpload() {
+            const fileInput = document.getElementById('fileInput');
+            const fileDropZone = document.getElementById('fileDropZone');
+
+            // File input change event
+            fileInput.addEventListener('change', handleFileSelect);
+
+            // Drag and drop events
+            fileDropZone.addEventListener('dragover', handleDragOver);
+            fileDropZone.addEventListener('dragleave', handleDragLeave);
+            fileDropZone.addEventListener('drop', handleFileDrop);
+        }
+
+        function handleFileSelect(event) {
+            const files = Array.from(event.target.files);
+            updateSelectedFiles(files);
+        }
+
+        function handleDragOver(event) {
+            event.preventDefault();
+            event.stopPropagation();
+            document.getElementById('fileDropZone').classList.add('dragover');
+        }
+
+        function handleDragLeave(event) {
+            event.preventDefault();
+            event.stopPropagation();
+            document.getElementById('fileDropZone').classList.remove('dragover');
+        }
+
+        function handleFileDrop(event) {
+            event.preventDefault();
+            event.stopPropagation();
+            document.getElementById('fileDropZone').classList.remove('dragover');
+
+            const files = Array.from(event.dataTransfer.files);
+            updateSelectedFiles(files);
+        }
+
+        function updateSelectedFiles(files) {
+            selectedFiles = files;
+
+            const fileInfo = document.getElementById('fileInfo');
+            const fileList = document.getElementById('fileList');
+            const uploadBtn = document.getElementById('uploadBtn');
+
+            if (files.length > 0) {
+                fileInfo.style.display = 'block';
+                uploadBtn.disabled = false;
+
+                fileList.innerHTML = '';
+                files.forEach((file, index) => {
+                    const fileItem = document.createElement('div');
+                    fileItem.style.cssText = 'margin: 5px 0; padding: 8px; background: rgba(255,255,255,0.1); border-radius: 5px; display: flex; justify-content: space-between; align-items: center;';
+
+                    const fileIcon = getFileIcon(file.name);
+                    const fileSize = formatFileSize(file.size);
+
+                    fileItem.innerHTML = `
+                        <span>${fileIcon} ${file.name} (${fileSize})</span>
+                        <button onclick="removeFile(${index})" style="background: #dc3545; border: none; color: white; padding: 4px 8px; border-radius: 4px; cursor: pointer;">✕</button>
+                    `;
+
+                    fileList.appendChild(fileItem);
+                });
+            } else {
+                fileInfo.style.display = 'none';
+                uploadBtn.disabled = true;
+            }
+        }
+
+        function removeFile(index) {
+            selectedFiles.splice(index, 1);
+            updateSelectedFiles(selectedFiles);
+        }
+
+        function clearFiles() {
+            selectedFiles = [];
+            document.getElementById('fileInput').value = '';
+            updateSelectedFiles([]);
+        }
+
+        function getFileIcon(filename) {
+            const ext = filename.split('.').pop().toLowerCase();
+            const icons = {
+                'pdf': '📄',
+                'png': '🖼️', 'jpg': '🖼️', 'jpeg': '🖼️', 'bmp': '🖼️', 'tiff': '🖼️',
+                'txt': '📝', 'md': '📝',
+                'doc': '📘', 'docx': '📘',
+                'ppt': '📊', 'pptx': '📊',
+                'xls': '📗', 'xlsx': '📗'
+            };
+            return icons[ext] || '📎';
+        }
+
+        function formatFileSize(bytes) {
+            if (bytes === 0) return '0 Bytes';
+            const k = 1024;
+            const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+        }
+
+        async function uploadFiles() {
+            if (selectedFiles.length === 0) {
+                alert('Please select files to upload');
+                return;
+            }
+
+            const uploadProgress = document.getElementById('uploadProgress');
+            const progressFill = document.getElementById('progressFill');
+            const progressText = document.getElementById('progressText');
+            const uploadBtn = document.getElementById('uploadBtn');
+
+            // Show progress
+            uploadProgress.style.display = 'block';
+            uploadBtn.disabled = true;
+
+            // Get processing options
+            const enableLLM = document.getElementById('enableLLM').checked;
+            const saveToDb = document.getElementById('saveToDb').checked;
+            const enableOCR = document.getElementById('enableOCR').checked;
+            const generateSummary = document.getElementById('generateSummary').checked;
+
+            try {
+                for (let i = 0; i < selectedFiles.length; i++) {
+                    const file = selectedFiles[i];
+                    const progress = ((i + 1) / selectedFiles.length) * 100;
+
+                    // Update progress
+                    progressFill.style.width = progress + '%';
+                    progressText.textContent = `Processing ${file.name}... (${Math.round(progress)}%)`;
+
+                    // Create form data
+                    const formData = new FormData();
+                    formData.append('file', file);
+                    formData.append('enable_llm', enableLLM);
+                    formData.append('save_to_db', saveToDb);
+                    formData.append('enable_ocr', enableOCR);
+                    formData.append('generate_summary', generateSummary);
+
+                    // Upload file
+                    const response = await fetch('/api/process-document', {
+                        method: 'POST',
+                        body: formData
+                    });
+
+                    const result = await response.json();
+
+                    // Display result
+                    const command = `📁 Uploaded: ${file.name}`;
+                    displayResult(command, {
+                        status: response.ok ? 'success' : 'error',
+                        filename: file.name,
+                        fileSize: formatFileSize(file.size),
+                        processingOptions: {
+                            llm: enableLLM,
+                            saveToDb: saveToDb,
+                            ocr: enableOCR,
+                            summary: generateSummary
+                        },
+                        result: result,
+                        timestamp: new Date().toISOString()
+                    });
+                }
+
+                // Complete
+                progressText.textContent = 'Upload complete!';
+                setTimeout(() => {
+                    uploadProgress.style.display = 'none';
+                    clearFiles();
+                }, 2000);
+
+            } catch (error) {
+                displayError('File Upload', error.message);
+                uploadProgress.style.display = 'none';
+            } finally {
+                uploadBtn.disabled = false;
+            }
+        }
+
+        async function showUploadHistory() {
+            showLoading(true);
+
+            try {
+                const response = await fetch('/api/results');
+                const results = await response.json();
+
+                // Filter for uploaded files
+                const uploadResults = results.filter(r => r.filename);
+
+                displayResult('📋 Upload History', {
+                    status: 'success',
+                    totalUploads: uploadResults.length,
+                    recentUploads: uploadResults.slice(0, 10).map(r => ({
+                        filename: r.filename,
+                        timestamp: r.timestamp,
+                        llmEnabled: r.llm_enabled || false
+                    })),
+                    timestamp: new Date().toISOString()
+                });
+
+            } catch (error) {
+                displayError('Upload History', error.message);
+            } finally {
+                showLoading(false);
+            }
+        }
+    </script>
+</body>
+</html>

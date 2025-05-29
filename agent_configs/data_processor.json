@@ -1,0 +1,32 @@
+{
+  "id": "data_processor",
+  "name": "Data Processing Agent",
+  "description": "Processes and transforms various data formats",
+  "connection_type": "python_module",
+  "module_path": "example_agents.simple_agent",
+  "class_name": "DataProcessor",
+  "keywords": [
+    "data",
+    "process",
+    "transform",
+    "convert",
+    "format"
+  ],
+  "patterns": [
+    "process\\s+data",
+    "transform\\s+(.+)",
+    "convert\\s+(.+)"
+  ],
+  "capabilities": {
+    "data_transformation": true,
+    "format_conversion": true,
+    "data_validation": true,
+    "batch_processing": true
+  },
+  "collaboration_roles": [
+    "processor",
+    "transformer"
+  ],
+  "enabled": true,
+  "auto_connect": true
+}

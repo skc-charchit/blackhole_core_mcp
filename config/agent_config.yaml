@@ -1,0 +1,47 @@
+# MCP Agent Configuration
+agents:
+  live_data:
+    weather_agent:
+      enabled: true
+      api_key_env: "OPENWEATHER_API_KEY"
+      cache_duration: 300
+      priority: 1
+  
+  processing:
+    math_agent:
+      enabled: true
+      precision: 6
+      priority: 1
+    
+    image_ocr_agent:
+      enabled: true
+      tesseract_path: "auto"
+      preprocessing_level: 2
+      priority: 2
+    
+    document_agent:
+      enabled: true
+      supported_formats: ["pdf", "txt", "docx"]
+      priority: 2
+  
+  communication:
+    email_agent:
+      enabled: true
+      smtp_server: "smtp.gmail.com"
+      smtp_port: 587
+      priority: 3
+    
+    calendar_agent:
+      enabled: true
+      timezone: "UTC"
+      priority: 3
+
+mongodb:
+  connection_timeout: 30
+  max_pool_size: 100
+  retry_writes: true
+
+conversation:
+  max_history: 1000
+  search_first: true
+  cache_responses: true

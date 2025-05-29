@@ -1,0 +1,21 @@
+
+        BlackHole Core MCP Test Document
+        
+        This is a comprehensive test document for the BlackHole Core MCP system.
+        It contains information about:
+        
+        1. Document Processing Capabilities
+        2. AI-powered Analysis Features
+        3. Multi-modal Content Handling
+        4. Database Storage and Retrieval
+        
+        The system can process PDFs, images, and text files with advanced
+        natural language processing capabilities using Together.ai's LLM models.
+        
+        Key Features:
+        - PDF text extraction
+        - Image OCR processing
+        - Question answering
+        - Document summarization
+        - MongoDB storage
+        

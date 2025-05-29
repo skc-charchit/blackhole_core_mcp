@@ -1,0 +1,1 @@
+This is a live test document for BlackHole Core MCP with MongoDB connection. Testing document processing and database storage.

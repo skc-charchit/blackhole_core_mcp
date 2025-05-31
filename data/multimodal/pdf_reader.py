@@ -133,14 +133,18 @@ class EnhancedPDFReader:
         self.model_name = os.getenv("TOGETHER_MODEL_NAME", "deepseek-ai/DeepSeek-V3")
         self.embedding_model = os.getenv("TOGETHER_EMBEDDING_MODEL", "togethercomputer/m2-bert-80M-8k-retrieval")
 
-        # Text processing settings
-        self.chunk_size = int(os.getenv("CHUNK_SIZE", "500"))
-        self.chunk_overlap = int(os.getenv("CHUNK_OVERLAP", "50"))
+        # Text processing settings - optimized for token compatibility
+        self.chunk_size = int(os.getenv("CHUNK_SIZE", "1000"))  # Increased for better context
+        self.chunk_overlap = int(os.getenv("CHUNK_OVERLAP", "200"))  # Increased overlap for continuity
 
-        # LLM settings
-        self.temperature = float(os.getenv("LLM_TEMPERATURE", "0.7"))
-        self.max_tokens = int(os.getenv("LLM_MAX_TOKENS", "2048"))
-        self.memory_k = int(os.getenv("LLM_MEMORY_K", "5"))
+        # Token estimation settings (rough estimate: 1 token ≈ 4 characters)
+        self.max_chunk_tokens = self.chunk_size // 4  # ~250 tokens per chunk
+        self.max_context_tokens = int(os.getenv("MAX_CONTEXT_TOKENS", "3000"))  # Max context for retrieval
+
+        # LLM settings - optimized for better responses
+        self.temperature = float(os.getenv("LLM_TEMPERATURE", "0.3"))  # Lower for more focused answers
+        self.max_tokens = int(os.getenv("LLM_MAX_TOKENS", "1024"))  # Reasonable response length
+        self.memory_k = int(os.getenv("LLM_MEMORY_K", "3"))  # Reduced for token efficiency
 
         # Storage paths for organized file management
         self.uploaded_pdfs_dir = Path("data/multimodal/uploaded_pdfs")
@@ -183,10 +187,13 @@ class EnhancedPDFReader:
                 api_key=self.api_key
             )
 
-            # Initialize text splitter
+            # Initialize text splitter with token-aware settings
             self.text_splitter = RecursiveCharacterTextSplitter(
                 chunk_size=self.chunk_size,
-                chunk_overlap=self.chunk_overlap
+                chunk_overlap=self.chunk_overlap,
+                length_function=len,  # Use character count
+                separators=["\n\n", "\n", ". ", " ", ""],  # Better separation
+                keep_separator=True  # Keep separators for context
             )
 
             # Initialize memory
@@ -201,6 +208,36 @@ class EnhancedPDFReader:
         except Exception as e:
             print(f"⚠️ Error initializing LLM components: {e}")
             self.llm = None
+
+    def estimate_tokens(self, text: str) -> int:
+        """Estimate the number of tokens in text (rough approximation)."""
+        # Rough estimation: 1 token ≈ 4 characters for English text
+        return len(text) // 4
+
+    def optimize_context_for_tokens(self, retrieved_docs: list, max_tokens: int = None) -> str:
+        """Optimize retrieved context to fit within token limits."""
+        if max_tokens is None:
+            max_tokens = self.max_context_tokens
+
+        combined_text = ""
+        current_tokens = 0
+
+        for doc in retrieved_docs:
+            doc_text = doc.page_content
+            doc_tokens = self.estimate_tokens(doc_text)
+
+            if current_tokens + doc_tokens <= max_tokens:
+                combined_text += doc_text + "\n\n"
+                current_tokens += doc_tokens
+            else:
+                # Add partial content if it fits
+                remaining_tokens = max_tokens - current_tokens
+                remaining_chars = remaining_tokens * 4
+                if remaining_chars > 100:  # Only add if meaningful content
+                    combined_text += doc_text[:remaining_chars] + "...\n\n"
+                break
+
+        return combined_text.strip()
 
     def extract_text_from_pdf(self, pdf_path: str, include_page_numbers: bool = True,
                              verbose: bool = True, try_ocr: bool = True) -> str:
@@ -237,7 +274,7 @@ class EnhancedPDFReader:
             # Create vector store
             self.vectorstore = FAISS.from_documents(split_docs, self.embeddings)
 
-            # Create QA chain
+            # Create QA chain with optimized retrieval
             prompt_template = PromptTemplate(
                 input_variables=["context", "question"],
                 template="""You are an expert assistant. Use the following document content to answer the user's question accurately and comprehensively.
@@ -246,13 +283,24 @@ Context: {context}
 
 Question: {question}
 
-Answer: Provide a detailed and accurate answer based on the document content. If the information is not available in the document, clearly state that."""
+Answer: Provide a detailed and accurate answer based on the document content. If the information is not available in the document, clearly state that. Keep your response focused and concise while being comprehensive."""
+            )
+
+            # Configure retriever with token-aware settings
+            retriever = self.vectorstore.as_retriever(
+                search_type="similarity",
+                search_kwargs={
+                    "k": 4,  # Retrieve more chunks for better context
+                    "fetch_k": 8  # Consider more candidates
+                }
             )
 
             self.qa_chain = ConversationalRetrievalChain.from_llm(
                 llm=self.llm,
-                retriever=self.vectorstore.as_retriever(search_type="similarity"),
+                retriever=retriever,
                 memory=self.memory,
+                return_source_documents=False,  # Disable source documents to fix memory issue
+                output_key="answer",  # Specify output key for memory
                 combine_docs_chain_kwargs={"prompt": prompt_template}
             )
 
@@ -263,6 +311,64 @@ Answer: Provide a detailed and accurate answer based on the document content. If
 
         except Exception as e:
             print(f"❌ Error processing PDF: {e}")
+            return False
+
+    def load_and_process_text(self, text_content: str, document_name: str = "document", verbose: bool = True) -> bool:
+        """Load and process text content for question answering."""
+        if not HAS_LANGCHAIN or not self.llm:
+            if verbose:
+                print("⚠️ LLM functionality not available")
+            return False
+
+        try:
+            if verbose:
+                print(f"📝 Processing text content: {document_name}")
+
+            # Create document from text
+            from langchain_core.documents import Document
+            documents = [Document(page_content=text_content, metadata={"source": document_name})]
+
+            if verbose:
+                print(f"📄 Created document with {len(text_content)} characters")
+
+            # Split text into chunks
+            text_chunks = self.text_splitter.split_documents(documents)
+
+            if verbose:
+                print(f"📝 Split into {len(text_chunks)} chunks")
+
+            # Create vector store
+            self.vectorstore = FAISS.from_documents(text_chunks, self.embeddings)
+
+            if verbose:
+                print("🔍 Vector store created")
+
+            # Create QA chain with optimized retrieval
+            retriever = self.vectorstore.as_retriever(
+                search_type="similarity",
+                search_kwargs={
+                    "k": 4,  # Retrieve more chunks for better context
+                    "fetch_k": 8  # Consider more candidates
+                }
+            )
+
+            self.qa_chain = ConversationalRetrievalChain.from_llm(
+                llm=self.llm,
+                retriever=retriever,
+                memory=self.memory,
+                return_source_documents=False,  # Disable source documents to fix memory issue
+                verbose=False,
+                output_key="answer"  # Specify output key for memory
+            )
+
+            if verbose:
+                print("✅ Text processing complete - ready for questions")
+
+            return True
+
+        except Exception as e:
+            if verbose:
+                print(f"❌ Error processing text: {e}")
             return False
 
     def ask_question(self, question: str, verbose: bool = True) -> str:
@@ -392,6 +498,8 @@ Answer: Provide a detailed and accurate answer based on the document content. If
                     llm=self.llm,
                     retriever=self.vectorstore.as_retriever(search_type="similarity"),
                     memory=self.memory,
+                    return_source_documents=False,  # Disable source documents to fix memory issue
+                    output_key="answer",  # Specify output key for memory
                     combine_docs_chain_kwargs={"prompt": prompt_template}
                 )
 
